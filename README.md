@@ -12,7 +12,7 @@
 | Framework | LangChain | 模型、工具与 Agent 循环 |
 | Harness | Deep Agents | 文件操作、上下文管理与任务委派等能力 |
 
-本章配套的 [Notebook](https://github.com/datawhalechina/deepagents-in-action) 可作为首次实验的参考。后续实践将重点观察 Deep Agents 如何通过工具、中间件和 Backend 组合这些能力。
+本章配套的 [Notebook](https://github.com/datawhalechina/deepagents-in-action/blob/main/notebooks/ch01/01-agent-harness.ipynb) 可作为首次实验的参考。后续实践将重点观察 Deep Agents 如何通过工具、中间件和 Backend 组合这些能力。
 
 ## 当前状态
 
@@ -28,3 +28,4 @@
 
 - [Deep Agents 实战教程](https://datawhalechina.github.io/deepagents-in-action/)
 - [第 1 章：从 Agent Framework 到 Agent Harness](https://datawhalechina.github.io/deepagents-in-action/chapters/ch01-agent-harness/)
+
