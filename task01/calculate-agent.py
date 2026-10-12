@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import Any
 from deepagents.middleware.skills import SKILLS_SYSTEM_PROMPT
 from langchain_openai import ChatOpenAI
+from langchain_core.tracers.langchain import get_client
 from deepagents import create_deep_agent
 
 # 安全白名单：允许的运算符（二元 + 一元）
@@ -236,3 +237,7 @@ result = agent.invoke(
 
 # 打印结果
 print(result["messages"][-1].content)
+
+# 短命令结束前等待 trace 上传，并关闭 LangSmith 后台线程
+if os.getenv("LANGSMITH_TRACING", "").lower() in {"true", "1"}:
+    get_client().close(timeout=10)
