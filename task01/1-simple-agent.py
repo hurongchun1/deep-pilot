@@ -1,5 +1,4 @@
 import os
-from deepagents.middleware.skills import SKILLS_SYSTEM_PROMPT
 from langchain_openai import ChatOpenAI
 from langchain_core.tracers.langchain import get_client
 from deepagents import create_deep_agent

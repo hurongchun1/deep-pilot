@@ -1,6 +1,8 @@
 import os
 from typing import Any, Literal
+from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
+from langchain.agents.middleware import TodoListMiddleware
 from deepagents import create_deep_agent
 from tavily import TavilyClient
 
@@ -63,8 +65,14 @@ system_prompt = """你是一名严谨的研究助手，擅长通过联网搜索�
 agent = create_deep_agent(
     model = model,
     tools = [search_tool],
-    system_prompt=system_prompt
+    system_prompt=system_prompt,
+    # middleware = [TodoListMiddleware()]
 )
+
+# 验证注册工具
+registered =  sorted(agent.nodes["tools"].bound.tools_by_name)
+print("已注册的工具：",registered)
+assert {"search_tool","write_todos","write_file"} <= set(registered)
 
 # 运行结果
 result = agent.invoke(
