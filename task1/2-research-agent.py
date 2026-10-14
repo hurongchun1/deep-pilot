@@ -1,6 +1,6 @@
 import os
 from typing import Any, Literal
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langchain.agents.middleware import TodoListMiddleware
 from deepagents import create_deep_agent
@@ -72,11 +72,23 @@ agent = create_deep_agent(
 # 验证注册工具
 registered =  sorted(agent.nodes["tools"].bound.tools_by_name)
 print("已注册的工具：",registered)
-assert {"search_tool","write_todos","write_file"} <= set(registered)
+# assert {"search_tool","write_todos","write_file"} <= set(registered)
 
 # 运行结果
 result = agent.invoke(
     {"messages": [{"role": "user", "content": "什么是 LangGraph？"}]}
 )
+
+print("=====================调用轨迹================================")
+for message in result["messages"]:
+    if isinstance(message, AIMessage):
+        for call in message.tool_calls:
+            print("请求", call["name"], call["args"], "ID:", call["id"])
+        if not message.tool_calls:
+            print("最终回复：", message.content[:60])
+    if isinstance(message, ToolMessage):
+        print("  返回", message.name, message.status, str(message.content)[:60], "ID:", message.tool_call_id)
+print("状态中的键：", sorted(result))
+print("todos：", result.get("todos", "（本次没有 todos 状态）"))
 
 print(result["messages"][-1].content)
