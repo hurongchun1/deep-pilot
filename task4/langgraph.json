@@ -1,0 +1,12 @@
+{
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "content_builder": "./src/task4/agent.py:graph"
+  },
+  "http": {
+    "app": "./src/task4/webapp.py:app"
+  },
+  "env": "./.env"
+}

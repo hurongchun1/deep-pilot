@@ -1,3 +1,5 @@
 deepagents
 langchain-openai
 langchain-core
+python-dotenv
+tavily-python
