@@ -1,0 +1,206 @@
+task1
+验证内容
+第⼀轮：汇率变量实验（offline机制验证）
+验证什么
+汇率改变后，模型第⼆步⽤⼯具真实返回还是旧数字？
+改了什么
+， （本轮唯⼀改动变量，脚本其余部分不动）。
+rates["USD"] 7.2 -> 7.0
+预测结果
+• convert_currency返回多少⼈⺠币？700.0
+• 脚本⾥第⼆次调⽤写死的是720.0*1.08，calculate会返回多少？返回777.6
+• check_calculator会通过吗？预期通过
+实际结果
+• 实验⽅式：offline机制验证——模型⽤ 预设⼯具调⽤序列，
+FakeMessagesListChatModel
+不经过真实LLM，结果完全确定性、可复现
+• 基线（USD=7.2，改前）：全部检查通过
+
+• 改变量后（USD=7.0）：check_calculator报错停⽌
+• 是否达到预期：部分达到。前两条预测全部命中（700.0/777.6）；第三条
+会失败，停留在"AssertionError:calculate的算式没有⽤到换算结果
+check_calculator
+700.0"。
+证据与解释
+
+• 关键代码：
+代码块
+1 # 本轮唯⼀改动：汇率 7.2 → 7.0
+2 rates = {"USD": 7.0, "CNY": 1.0, "EUR": 7.8}
+3
+4 # 第⼆次⼯具调⽤（脚本预设，算式硬编码 720.0，没有使⽤第⼀次的⼯具返回）
+5 AIMessage(content="", tool_calls=[{
+6 "name": "calculate", "args": {"expression": "720.0 * 1.08"}, "id": "ch02-
+calculate",
+7 }])
+• Trace中实际看到的调⽤顺序：
+a. →
+convert_currency(100, "USD") {"amount": 700.0, "currency":
+（success）
+"CNY"}
+b. → （success）⸺输⼊参数仍是720.0，没有
+calculate("720.0 * 1.08") 777.6
+变成第⼀次返回的700.0
+• 证明的结论：offline实验中第⼆次调⽤的是⼈为写死的数据，证明"脚本写法会割裂两次⼯具调⽤
+之间的数据流"，导致第⼆步计算⽤的是旧数字（720.0），⽽⾮⼯具真实返回的700.0。
+第⼆轮：live真实模型对照实验
+验证什么
+
+换成真实模型后，模型会不会把第⼀次⼯具的返回值传给第⼆次计算？
+改了什么
+唯⼀改动变量=模型： （调⽤写死）→
+FakeMessagesListChatModel ChatOpenAI
+（deepseek-flash）；⼯具、提问⽅式不变，汇率也与第1轮统⼀为7.0。
+预测结果
+模型会读取对话历史⾥的换算结果，把它写进calculate的算式。
+实际结果
+• 模型名称（live必填）：deepseek-flash
+• 换算返回700.0，calculate收到的算式是 ，返回756.0，最终回复正确串联了两步
+700 * 1.08
+结果：
+证据与解释
+• 关键代码：
+代码块
+1 agent = create_deep_agent(
+2 model=model,
+3 tools=[calculate, convert_currency],
+4 system_prompt="你是⼀个计算助⼿，能帮⽤⼾做数学运算和货币换算。",
+5 )
+• Trace中实际看到的调⽤顺序：
+a. -> (success)
+convert_currency(100,"USD") {"amount": 700.0, ...}
+b. -> (success)
+calculate("700 * 1.08" ) 756.0
+
+• 证明的结论：live实验换⽤真实模型（deepseek-flash）后，模型会从对话历史中读取第⼀次⼯具
+返回的换算结果（700.0），并把它写进第⼆次⼯具调⽤的参数（ ），最终回答正
+700 * 1.08
+确（756.0），证明真实模型具备结合历史上下⽂串联⼯具结果的能⼒。
+第三轮：⼯具错误透传实验（offline）
+验证什么
+⼯具调⽤失败时，框架如何处理？参数错误和⼯具内部异常是同⼀种待遇吗？
+实验⽅式
+沿⽤第1轮的 夹具（agent、⼯具、提⽰词全不变），只改注⼊的tool_call，
+run_scripted
+拆成两个⼦实验（offline机制验证，⽆真实模型）。
+实验A：参数类型错误
+改了什么
+注⼊的tool_call⾥ 传字符串 （⼯具要求数字）。
+amount a lot
+预测结果
+得到error反馈， 正常结束。
+invoke()
+实际结果
+实验得到的结果:
+
+证据与解释
+• 关键代码：
+代码块
+1 bad_type = run_scripted({"name": "convert_currency", "id": "ch02-bad-type",
+2 "args": {"amount": "a lot", "from_currency": "USD"}})
+3 error_message = next(m for m in bad_type["messages"] if isinstance(m,
+ToolMessage))
+4 print("状态：", error_message.status)
+5 print("内容：", error_message.content)
+6 assert error_message.status == "error" and "amount" in error_message.content
+• Trace中实际看到的调⽤顺序：
+a. ->⼯具调⽤失败
+convert_currency(amount="a lot", from_currency="USD")
+b. 框架把错误转成反馈回填对话：
+Error invoking tool 'convert_currency'
+with kwargs {'amount': 'a lot', 'from_currency': 'USD'} with
+error: amount: Input should be a valid number, unable to parse
+.
+string as a number. Please fix the error and try again
+
+• 证明的结论：参数错误被框架转成"给模型看的反馈"——模型读到后可以⾃我修正，循环继续，程
+序不中断。
+实验B：⼯具内部异常
+改了什么
+注⼊的tool_call⾥ 传 （rates表没有该键，函数内部抛
+from_currency "JPY"
+KeyError）。
+预测结果
+预计 会被中断，程序⽆法继续运⾏。
+invoke()
+实际结果
+
+证据与解释
+• 关键代码：
+代码块
+1 try:
+2 # 实验B
+3 run_scripted({"name": "convert_currency", "id": "ch02-unknown-currency",
+4 "args": {"amount": 1, "from_currency": "JPY"}})
+5 except KeyError as error:
+6 print("\n函数内部异常中断了 invoke()：KeyError", error)
+7 else:
+8 raise AssertionError("预期 rates['JPY'] 抛出 KeyError。")
+• Trace中实际看到的调⽤顺序：
+a. ->⼯具调⽤异常中断
+convert_currency(amount=1, from_currency="JPY")
+
+• 证明结论：⼯具内部异常不会被转成"给模型看的反馈"，⽽是直接中断后暴露给程序员。
+两个实验合起来的结论
+框架按"错误能否通过重试解决"分流——参数错误可恢复（回给模型⾃我修正）；内部异常不可
+恢复（换什么参数都躲不开代码bug），直接抛出让程序员修复。
+第四轮：规划中间件拆除实验（live）
+验证什么
+（规划⼯具）到底是谁提供的——DeepAgent⾃带，还是
+write_todos
+注册的？拆掉它之后，Agent还能完成研究任务吗？
+TodoListMiddleware
+改了什么
+唯⼀改动变量=注释 ，模型、Tavily搜索⼯具、
+middleware=[TodoListMiddleware()]
+系统提⽰词、提问全部不变。
+预测结果
+• 注册清单中 消失，断⾔失败
+write_todos
+• 脚本仍会请求 ，返回 "write_todosisnotavalidtool"
+write_todos status: error
+• result中todos状态消失，研究任务仍能完成
+实际结果
+• 模型名称（live必填）：deepseek-flash（Tavily联⽹搜索真实执⾏）
+• ⼯具注册结果：
+
+• Trace中实际看的结果：
+证据与解释
+• 关键代码：
+代码块
+1 # ⼯具整合到Agent
+2 agent = create_deep_agent(
+3 model = model,
+4 tools = [search_tool],
+
+5 system_prompt=system_prompt,
+6 # middleware = [TodoListMiddleware()]
+7 )
+• 注册清单对⽐：关闭后同⼀清单但⽆ ――规划⼯具确实来⾃中间件注册，不是
+write_todos
+DeepAgent默认⾃带（预测命中）。
+• 偏差1：模型没有幻觉调⽤ （课程预期出现2次"notavalidtool"）。
+write_todos
+• 偏差2（更关键）： 状态键⽆论开关middleware都不出现在result中（始终只有
+todos
+/ ），与课程预期不同。
+files messages
+• 证明的结论： 规划⼯具由 注册提供，不是Deep
+write_todos TodoListMiddleware
+Agent默认⾃带——拆除middleware后它从注册清单消失，断⾔随即失败。
+遇到的问题
+LangSmith追踪失败
+LangSmit的⻚⾯中，⽆法找到对应的Trace记录
+解决⽅案
+deepagent项⽬虽然集成依赖，但是环境变量中仍然需要设定下列参数：
+代码块
+1 # 开启LangSmith链路追踪
+2 LANGSMITH_TRACING=true
+3 # 输⼊你LangSmith的api_key
+4 LANGSMITH_API_KEY=你的api_key
+5 # 输⼊LangSmith的链路项⽬
+6 LANGSMITH_PROJECT=你的链路项⽬
+最后重新运⾏的结果：
+
+LangSmith链路结果：
+总结

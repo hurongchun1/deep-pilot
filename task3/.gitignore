@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# AgentSeek API development checkpoint state
+.langgraph_api/
+
+# Env
+.env
