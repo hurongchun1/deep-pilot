@@ -20,7 +20,7 @@ load_dotenv(ENV_FILE)
 #      init_chat_model() 的提供商语法，直传 ChatOpenAI 要剥掉，否则网关收到
 #      "openai:deepseek-flash" 还是会 400。
 model = ChatOpenAI(
-    model = os.environ["AGENTSEEK_MODEL"].removeprefix("openai:"),
+    model = os.environ["AGENTSEEK_MODEL"],
     base_url = os.environ["OPENAI_API_BASE"],
     api_key= os.environ["OPENAI_API_KEY"],  # pyright: ignore[reportArgumentType]
     # DeepSeek 的 thinking.type 默认 enabled（思考模式）；思考模式不支持
