@@ -40,13 +40,15 @@ task4/                           # Content Builder 后端实验，安装和运�
 
 ## 环境配置
 
-Python 3.11+，依赖通过 venv 管理：
+整个仓库使用 Python 3.12 或 3.13（`task2` 模板要求 `<3.14`）。在仓库根目录安装 `task1` 和 `task2` 的依赖：
 
 ```powershell
 python -m venv venv
 .\venv\Scripts\activate
-pip install deepagents langchain langchain-openai langchain-core tavily-python
+python -m pip install -r requirement.txt
 ```
+
+`requirement.txt` 中的 AgentSeek 集成包来自固定 Git 提交，因此安装时需要 Git。若只运行 `task2`，优先在 `task2` 目录执行 `uv sync --frozen`，以 `uv.lock` 复现其完整环境。`uvx agentseek` 是单独调用的 CLI，不由项目的 Python 依赖文件安装。
 
 需要的环境变量：
 
