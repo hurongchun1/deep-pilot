@@ -28,5 +28,7 @@ htmlcov/
 # Editor and operating system files
 .idea/
 .vscode/
+!task5/.vscode/
+!task5/.vscode/settings.json
 .DS_Store
 Thumbs.db

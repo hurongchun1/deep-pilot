@@ -79,13 +79,32 @@ def build_subagent_graph(model: ChatOpenAI):
             ]
         )
         return {"messages": [reply]}
-
+    
+    '''
+    开始
+    │
+    ▼
+    model（模型读取消息并回复）
+    │
+    ├─ 回复中有工具调用 ──► tools（执行 calculate_average）
+    │                            │
+    │                            └────────► 回到 model
+    │
+    └─ 回复中没有工具调用 ──► 结束
+    '''
+    # 定义流程中传递的数据：消息记录
     graph = StateGraph(ChildState)
+    # 设置"思考与回答"步骤
     graph.add_node("model", call_model)
+    # 设置"实际计算"步骤
     graph.add_node("tools", ToolNode([calculate_average]))
+    # 从START 节点开始，从模型步骤开始
     graph.add_edge(START, "model")
+    # 模型要调用工具就去 tools,否则结束
     graph.add_conditional_edges("model", tools_condition)
+    # 计算完，吧结果交给模型
     graph.add_edge("tools", "model")
+    # 吧流程定义变成可运行的子图
     return graph.compile()
 
 

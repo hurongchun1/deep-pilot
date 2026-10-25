@@ -20,6 +20,8 @@ Task 1 已完成：围绕"工具间数据如何流动"完成四轮实验（offli
 
 Task 4 已在 [task4/README.md](task4/README.md) 建立独立的 DeepAgents content-builder 后端实验目录。Task 4 使用自己的 Python 3.12 环境和锁文件；下面的根目录环境说明适用于 Task 1。
 
+Task 5 已在 [task5/README.md](task5/README.md) 建立第 7 章 Skills 实验目录，同样独立使用 Python 3.12 和锁文件。离线脚本演示 Skill 元数据、正文及资源的渐进式加载。
+
 ## 目录结构
 
 ```
@@ -36,6 +38,7 @@ task1/
 └── images/                        # 实验截图
 
 task4/                           # Content Builder 后端实验，安装和运行见 task4/README.md
+task5/                           # 第 7 章 Skills 实验，安装和运行见 task5/README.md
 ```
 
 ## 环境配置

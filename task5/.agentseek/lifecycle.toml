@@ -1,0 +1,79 @@
+version = 2
+template = "deepagents/content-builder"
+name = "Task5"
+description = "DeepAgents content workflow with an AgentSeek API runtime."
+env_file = ".env"
+guide = "README.md"
+
+[env.SEEKDB_EMBED]
+required = true
+default = "true"
+description = "Use embedded AgentSeek API checkpoint persistence."
+
+[env.SEEKDB_EMBED_DIR]
+required = true
+default = "~/.agentseek/task5/seekdb"
+description = "Embedded AgentSeek API persistence directory."
+
+[env.OCEANBASE_DB_NAME]
+required = true
+default = "test"
+description = "Embedded AgentSeek API database name."
+
+[tools]
+required = ["uv"]
+
+[paths]
+required = ["pyproject.toml", "langgraph.json"]
+
+[env.AGENTSEEK_MODEL_PROVIDER]
+required = true
+default = "openai"
+description = "LangChain model provider used by the DeepAgents graph."
+
+[env.AGENTSEEK_MODEL]
+required = true
+default = "deepseek-ai/DeepSeek-V3.2"
+description = "Model id used by the main DeepAgents graph."
+aliases = ["DEEPAGENTS_MODEL", "BUB_MODEL"]
+
+[env.OPENAI_API_KEY]
+required = true
+description = "Credential for the selected model provider."
+aliases = ["ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "BUB_OPENAI_API_KEY"]
+
+[env.TAVILY_API_KEY]
+required = false
+description = "Tavily key used by the researcher subagent."
+
+[env.GOOGLE_API_KEY]
+required = false
+description = "Gemini key used by image generation and google_genai models."
+
+[services.langgraph]
+name = "AgentSeek API"
+url = "http://127.0.0.1:2025"
+tech = "agentseek-api"
+kind = "api"
+display = "default"
+primary = true
+description = "AgentSeek API runtime for the content builder."
+links = { docs = "https://docs.langchain.com/oss/python/langgraph/overview", api_docs = "http://127.0.0.1:2025/docs", studio = "https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2025" }
+
+[processes.langgraph]
+command = ["uv", "run", "agentseek-api", "dev", "--port", "2025"]
+
+[checks.langgraph]
+type = "http"
+target = "http://127.0.0.1:2025/health"
+service = "langgraph"
+timeout = 2.0
+attempts = 3
+
+[tasks.sync]
+description = "Install Python dependencies with uv."
+command = ["uv", "sync", "--frozen"]
+
+[tasks.course-check]
+description = "Run model-free course graph and artifact checks."
+command = ["uv", "run", "--frozen", "pytest", "tests", "-q"]

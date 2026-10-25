@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# AgentSeek API development checkpoint state
+.langgraph_api/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Env
+.env
+
+# Generated content
+blogs/
+linkedin/
+tweets/
+research/
+
+# Local course outputs
+reports/
