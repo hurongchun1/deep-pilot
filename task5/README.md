@@ -34,6 +34,18 @@ uv run --frozen pytest tests -q
 
 本项目采用 `src/task5/` 布局，但上面的独立实验不需要导入该包。请用 `task5/.venv` 运行实验，以取得锁定的 `deepagents` 等依赖。运行后端应用或项目测试时才会用到 `task5.agent`；VS Code 单独打开 `task5` 目录时，本目录的 `.vscode/settings.json` 会选择 `task5/.venv` 并把 `src` 加入分析路径。
 
+## 真实模型实验
+
+`experiments/_live.py` 是从 `.env` 构造真实模型、记录每次请求、打印工具轨迹的公共装配；两个实验脚本不复用脚本模型，模型自行决定读不读 Skill：
+
+```powershell
+uv run --frozen python experiments/ch07_live_skills.py --dry-run   # 只扫描 Skill，不调用模型
+uv run --frozen python experiments/ch07_live_skills.py             # 观察三层加载
+uv run --frozen python experiments/ch07_live_permissions.py        # 验证 Skill 写保护
+```
+
+`ch07_live_skills.py` 打印每次模型请求实际收到的 Skills 段处于第几层（仅元数据 / 含正文 / 含资源），并断言一条与模型选择无关的事实：首轮不可能出现正文或资源。`ch07_live_permissions.py` 在临时目录复制 `skill-guide`，拒绝写入 `/skills/**`、放行其他路径，验证"拒绝生效且没误伤正常写入"；模型若不肯尝试改写 Skill，脚本会打印 `SKIP` 并以 2 退出。两者都需要 `.env` 中的 `OPENAI_API_KEY`（或其他 provider 对应密钥），离线实验不需要。
+
 ## 连接真实模型
 
 只在 `.env` 不存在时复制配置并填写所选模型的密钥：
