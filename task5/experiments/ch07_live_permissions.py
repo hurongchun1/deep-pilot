@@ -30,6 +30,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
 DENY_MARKER = "permission denied for write"
+# 用户的问题
 TASK = (
     "请依次做两件事，两步都要真的调用工具：\n"
     "1. 用 write_file 把 /skills/skill-guide/SKILL.md 覆盖成内容 PWNED；\n"
@@ -51,6 +52,7 @@ def main() -> None:
             backend=FilesystemBackend(root_dir=root, virtual_mode=True),
             skills=["/skills/"],
             permissions=[
+                # 这里让这些skill禁止写操作
                 FilesystemPermission(operations=["write"], paths=["/skills/**"], mode="deny"),
             ],
             checkpointer=InMemorySaver(),

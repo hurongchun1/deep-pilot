@@ -22,7 +22,7 @@
 | FilesystemBackend | 离线脚本直接配置项目根目录与 `skills=["/skills/"]`；模板后端也使用同一目录 |
 | 多源覆盖、运行时路径 | `build_graph(..., skill_sources=[...])` 与 `tests/test_skills.py` |
 
-第 7 章还介绍 `StateBackend`、`StoreBackend`、子 Agent 的 Skill 配置和文件权限。这些是部署方式或权限边界，当前内容创作工程使用本地 `FilesystemBackend`；需要无磁盘注入、跨线程共享或写入审批时，再按章节示例选择对应后端与权限配置。
+第 7 章还介绍 `StateBackend`、`StoreBackend`、子 Agent 的 Skill 配置和文件权限。项目主 Agent 继续使用本地 `FilesystemBackend`；`experiments/ch07_backends.py`、`ch07_subagents.py`、`ch07_permission_deny.py` 和 `ch07_interrupt.py` 分别验证这些机制。完整命令、结果及隔离沙箱等未验证边界见 [EXPERIMENTS.md](EXPERIMENTS.md)。
 
 ## 运行与判读
 

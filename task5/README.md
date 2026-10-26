@@ -14,8 +14,14 @@ task5/
 │   ├── references/concepts.md           # 按需读取的术语卡
 │   └── assets/guide-outline.md          # 按需读取的学习笔记模板
 ├── experiments/ch07_progressive_disclosure.py
+├── experiments/ch07_backends.py          # State、Store、Composite 与角色来源
+├── experiments/ch07_subagents.py         # 主 Agent 与子 Agent 的 Skill 可见性
+├── experiments/ch07_interrupt.py         # 写入审批暂停、批准与拒绝
+├── experiments/ch07_script_execution.py  # Skill 脚本调用；本地 shell 非沙箱
+├── experiments/ch07_interpreter.py       # QuickJS 读取并执行 Skill 脚本
 ├── tests/test_skills.py
 ├── COURSE.md                            # 实验过程与观察点
+├── EXPERIMENTS.md                       # 全章节覆盖清单与未验证边界
 ├── .env.example
 ├── pyproject.toml
 └── uv.lock
@@ -74,3 +80,5 @@ blogs/ch07-skills/post.md，读取保存的文件确认内容后再回答。
 - 增加大篇幅资料：放在 Skill 的 `references/` 或 `assets/`，正文说明何时读取，避免把全部内容放入启动元数据。
 
 详细的实验观察点和第 7 章概念对应关系见 [COURSE.md](COURSE.md)。生成的文章保存在 `blogs/`，该目录已被 Git 忽略。
+
+各知识点的实际代码、运行命令与尚未验证的边界见 [EXPERIMENTS.md](EXPERIMENTS.md)。QuickJS 实验单独使用可选依赖：`uv run --frozen --extra quickjs python experiments/ch07_interpreter.py`。
