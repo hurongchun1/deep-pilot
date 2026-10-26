@@ -66,6 +66,7 @@ def build_subagent_graph(model: ChatOpenAI):
     """子图执行顺序：model →（需要工具时）tools → model。"""
     model_with_tools = model.bind_tools([calculate_average])
 
+    # model节点的创建
     def call_model(state: ChildState) -> dict:
         """模型节点读取消息，返回一条新消息给 ChildState。"""
         print("[子图 model] 正在读取 messages 并调用模型")
@@ -101,10 +102,13 @@ def build_subagent_graph(model: ChatOpenAI):
     # 从START 节点开始，从模型步骤开始
     graph.add_edge(START, "model")
     # 模型要调用工具就去 tools,否则结束
+    # tools_condition的返回分两种情况：
+    # 最后一条消息有tool_calls -> 返回字符串 "tools"(去名为tools的节点)
+    # 最后一条消息没有 -> 返回字符串 "__end__"(去终点)
     graph.add_conditional_edges("model", tools_condition)
-    # 计算完，吧结果交给模型
+    # 计算完，把结果交给模型
     graph.add_edge("tools", "model")
-    # 吧流程定义变成可运行的子图
+    # 把流程定义变成可运行的子图
     return graph.compile()
 
 
@@ -120,6 +124,7 @@ def main() -> None:
     calculator: CompiledSubAgent = {
         "name": "calculator",
         "description": "计算一组数字的平均值，并解释计算过程。",
+        # 将子agent集成进去
         "runnable": child_graph,
     }
     parent_agent = create_deep_agent(
@@ -133,6 +138,7 @@ def main() -> None:
     print(f"[用户问题] {question}")
 
     final_answer = ""
+    # 下面这串内容用来回答问题的
     for chunk in parent_agent.stream(
         {"messages": [{"role": "user", "content": question}]},
         stream_mode="updates",
