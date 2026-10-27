@@ -35,7 +35,7 @@ from deepagents.backends import FilesystemBackend
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-DEFAULT_TASK = "请写一份第 7 章 Skills 的学习笔记，说明三层加载是怎么回事。"
+DEFAULT_TASK = "请写一份关于Deep Agent Skill.md 三层加载是怎么回事。"
 
 
 def main() -> None:

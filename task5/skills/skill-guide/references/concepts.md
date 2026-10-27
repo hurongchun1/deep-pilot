@@ -1,4 +1,4 @@
-# 第 7 章术语卡
+# Skills 术语卡
 
 这份参考资料供 `skill-guide` 被选中后使用；它不是启动时自动注入的提示词。
 
@@ -31,4 +31,4 @@ skills/
 - `skills=["/skills/"]` 指向包含多个 Skill 子目录的父目录。它对应本地 `task5/skills/`，不是某个 `SKILL.md` 文件。
 - 多个来源出现同名 Skill 时，`skills` 列表后面的来源覆盖前面的来源。
 
-参考：[《Deep Agents 实战》第 7 章](https://datawhalechina.github.io/deepagents-in-action/chapters/ch07-skills/)。
+参考：[《Deep Agents 实战》Skills](https://datawhalechina.github.io/deepagents-in-action/chapters/ch07-skills/)。

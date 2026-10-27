@@ -32,6 +32,17 @@ uv run --frozen --extra quickjs python experiments/ch07_interpreter.py
 uv run --frozen pytest tests/test_skills.py -q
 ```
 
+`ch07_backends.py` 使用预设模型，也支持 LangSmith 追踪。它默认读取环境变量和
+`task5/.env` 中的追踪配置；加 `--trace` 可强制开启，`--no-trace` 可关闭。
+例如 `uv run --frozen python experiments/ch07_backends.py --trace --project deep-pilot`。
+开启时需配置 `LANGSMITH_API_KEY`，根记录名为 `ch07_backends`，下面按四组实验展开；
+脚本退出前等待上传，并打印追踪链接。该记录展示预设模型下的运行过程，不代表真实模型调用。
+
+第四轮的 `ch07_permission_deny.py` 使用相同追踪选项，例如
+`uv run --frozen python experiments/ch07_permission_deny.py --trace`。
+根记录名为 `ch07_permission_deny`，可展开查看两个 `write_file` 调用及拒写返回；
+根记录输出同时保存 Skill 拒写、内容未变和普通笔记写入三项检查结果。
+
 真实模型实验需要按 `.env.example` 配置模型密钥：
 
 ```powershell

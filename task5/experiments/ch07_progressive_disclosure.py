@@ -63,18 +63,18 @@ def run_trace() -> list[str]:
         skills=["/skills/"],
     )
     result = graph.invoke(
-        {"messages": [{"role": "user", "content": "请按模板写一份 Skills 第 7 章学习笔记。"}]}
+        {"messages": [{"role": "user", "content": "请按模板写一份 Skills 学习笔记。"}]}
     )
     errors = [m.content for m in result["messages"] if m.type == "tool" and m.status == "error"]
     if errors:
         raise RuntimeError(f"Skill reading failed: {errors}")
     prompts = model.prompts
     assert len(prompts) == 4
-    assert "当用户要求编写 Deep Agents 第 7 章 Skills 学习指南" in prompts[0]
+    assert "当用户要求编写 Deep Agents Skills 学习指南" in prompts[0]
     assert "区分 Skill 指令、普通工具与持久记忆" not in prompts[0]
     assert "区分 Skill 指令、普通工具与持久记忆" in prompts[1]
-    assert "第 7 章术语卡" not in prompts[1]
-    assert "第 7 章术语卡" in prompts[2]
+    assert "Skills 术语卡" not in prompts[1]
+    assert "Skills 术语卡" in prompts[2]
     assert "# 学习笔记模板" not in prompts[2]
     assert "# 学习笔记模板" in prompts[3]
     return prompts
