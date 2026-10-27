@@ -13,7 +13,7 @@ task5/
 │   ├── SKILL.md                         # 第 7 章学习指南的元数据与核心指令
 │   ├── references/concepts.md           # 按需读取的术语卡
 │   └── assets/guide-outline.md          # 按需读取的学习笔记模板
-├── experiments/ch07_progressive_disclosure.py
+├── experiments/ch07_progressive_disclosure.py  # 用一个不需要模型密钥的离线实验，验证 skill的内容是否按需、分层进入模型上下文
 ├── experiments/ch07_backends.py          # State、Store、Composite 与角色来源
 ├── experiments/ch07_subagents.py         # 主 Agent 与子 Agent 的 Skill 可见性
 ├── experiments/ch07_interrupt.py         # 写入审批暂停、批准与拒绝

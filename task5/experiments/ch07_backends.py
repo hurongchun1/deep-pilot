@@ -25,14 +25,20 @@ from langgraph.store.memory import InMemoryStore
 def done_model(count: int = 1) -> ScriptedModel:
     return ScriptedModel(replies=[AIMessage(content="完成") for _ in range(count)])
 
-
+# 这里的skill采用statebackend的存储方式
 def state_backend_case() -> None:
     model = done_model()
-    graph = create_deep_agent(model=model, backend=StateBackend(), skills=["/skills/"])
+    graph = create_deep_agent(
+        model=model, 
+        backend=StateBackend(), 
+        skills=["/skills/"]
+        # 这里可以配置 checkpointer 来保存具体的state
+    )
     graph.invoke(
         {
             "messages": [{"role": "user", "content": "列出可用 Skill"}],
             "files": {
+                
                 "/skills/state-guide/SKILL.md": create_file_data(
                     skill_file("state-guide", "STATE_MARKER：仅在本次输入的 state 中注入")
                 )
@@ -42,10 +48,11 @@ def state_backend_case() -> None:
     assert "STATE_MARKER" in model.prompts[0]
     print("StateBackend：通过 files + create_file_data 注入 Skill，单次调用成功。")
 
-
+# 这里的skill采用storebackend的存储方式
 def store_backend_case() -> None:
-    store = InMemoryStore()
+    store: InMemoryStore = InMemoryStore()
     store.put(
+        # store的数据以namespace表名称的方式进行隔离
         namespace=("skills", "shared"),
         key="/skills/store-guide/SKILL.md",
         value=create_file_data(skill_file("store-guide", "STORE_MARKER：跨线程共享")),
