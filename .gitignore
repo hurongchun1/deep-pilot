@@ -16,6 +16,8 @@ env/
 .env.*
 !.env.example
 task2/.env
+task6/.env
+task7/.env
 task2/lab-output/
 
 # Test and type-checker caches

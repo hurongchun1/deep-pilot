@@ -22,6 +22,10 @@ Task 4 已在 [task4/README.md](task4/README.md) 建立独立的 DeepAgents cont
 
 Task 5 已在 [task5/README.md](task5/README.md) 建立第 7 章 Skills 实验目录，同样独立使用 Python 3.12 和锁文件。离线脚本演示 Skill 元数据、正文及资源的渐进式加载。
 
+Task 6 已在 [task6/README.md](task6/README.md) 建立第 8 章长期记忆实验目录。真实模型脚本接入 LangSmith，验证跨线程写入、用户隔离、线程文件恢复和失败更新；四组离线脚本作为确定性对照。
+
+Task 7 已在 [task7/README.md](task7/README.md) 建立第 9 章 Human-in-the-Loop 实验目录。真实模型脚本接入 LangSmith，验证四种人工决策、条件中断和文件路径权限中断。
+
 ## 目录结构
 
 ```
@@ -39,6 +43,8 @@ task1/
 
 task4/                           # Content Builder 后端实验，安装和运行见 task4/README.md
 task5/                           # 第 7 章 Skills 实验，安装和运行见 task5/README.md
+task6/                           # 第 8 章长期记忆实验，安装和运行见 task6/README.md
+task7/                           # 第 9 章人工审批实验，安装和运行见 task7/README.md
 ```
 
 ## 环境配置
