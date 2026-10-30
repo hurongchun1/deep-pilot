@@ -1,49 +1,35 @@
-# Task 6：长期记忆实验
+# Task 6：长期记忆与 Human-in-the-Loop 学习
 
-参考 [AgentSeek content-builder 模板](https://github.com/agentseek-ai/agentseek-templates/tree/main/templates/deepagents/content-builder) 的 Deep Agents 装配方式，为[《Deep Agents 实战》第 8 章](https://datawhalechina.github.io/deepagents-in-action/chapters/ch08-long-term-memory/)建立独立实验目录。每个实验都直接调用 `create_deep_agent(...)`，完整展示该实验的 Backend、Store、Checkpointer 和 `memory=` 配置。本阶段只实现记忆实验，不包含模板的内容创作、前端、搜索或图像功能。
+本目录整理了第八章和第九章的学习总结。当前六组实验、真实模型入口和运行命令见 [experiments/README.md](experiments/README.md)。预设模型实验不需要模型 API 密钥；所有实验默认沿用 Windows 环境中的 LangSmith 配置，也支持 `--trace` / `--no-trace` 开关。
 
-模板参考提交：`agentseek-ai/agentseek-templates@7149bf2da837533cec9c738de64a09f90984f76a`。本目录锁定 `deepagents==0.7.10`，与第 8 章示例版本一致，不依赖 `task5` 的环境。
+- [第八章总结：长期记忆](ch08-long-term-memory-summary.md)
+- [第九章总结：Human-in-the-Loop](ch09-human-in-the-loop-summary.md)
 
-## 真实模型 + LangSmith（主实验）
+## 运行实验
 
-在 `task6` 目录运行。先把 `.env.example` 复制成 `.env`，填入模型连接信息；也可以直接设置同名环境变量。`LANGSMITH_API_KEY` 必填，`LANGSMITH_PROJECT` 可选。已有的 `.env` 不要覆盖。
-
-```powershell
-Copy-Item .env.example .env  # 仅当 .env 不存在时执行，然后填写密钥
-uv run --frozen python experiments/live_memory.py
-```
-
-此脚本通过模板相同的 `AGENTSEEK_MODEL`、`OPENAI_API_KEY`、`OPENAI_API_BASE` 约定连接真实模型，当前支持 OpenAI 及兼容接口。模型自行决定工具调用；脚本打印真实的 `read_file`、`edit_file`、`write_file` 和工具结果。它验证：
-
-1. 用户 Alice 的偏好确实写入 Store，全新线程的模型请求重新加载更新内容。
-2. 用户 Bob 的模型请求只包含 Bob 的 namespace，不包含 Alice 的偏好。
-3. Alice 更新语言偏好时保留格式偏好。
-4. `/workspace/draft.txt` 只在原线程可恢复，新线程读取失败。
-5. `edit_file` 找不到旧内容时返回错误，Store 保持原样，模型报告写入失败。
-
-运行时强制开启 LangSmith tracing，要求密钥可用；结束时刷新上传并打印 run 链接。使用新的 `InMemoryStore` 和 `InMemorySaver`，不修改 `task5` 的文件。每次运行会调用真实模型，产生模型及追踪服务请求。
-
-## 离线对照实验
-
-四组离线脚本保留作确定性对照，不需要 API 密钥，也不会上传 LangSmith trace。预设模型只固定工具调用，文件工具、Checkpointer、Store、路由和记忆加载都真实运行。
+在 `task6` 目录中运行：
 
 ```powershell
-uv run --frozen python experiments/01_thread_vs_store.py
-uv run --frozen python experiments/02_cross_thread_write.py
-uv run --frozen python experiments/03_user_isolation.py
-uv run --frozen python experiments/04_update_and_failure.py
+uv run --frozen python -X utf8 experiments/01_thread_state.py
+uv run --frozen python -X utf8 experiments/02_memory_routing.py
+uv run --frozen python -X utf8 experiments/03_hitl_review.py
+uv run --frozen python -X utf8 experiments/04_interrupt_replay.py
 ```
 
-| 脚本 | 验证内容 | 关键证据 |
+| 实验问题 | 脚本 | 检查什么 |
 | --- | --- | --- |
-| `01_thread_vs_store.py` | State 文件按线程隔离，Store 记忆跨线程 | `read_file` 工具结果、新线程模型请求 |
-| `02_cross_thread_write.py` | `edit_file` 经路由写入 Store，新线程重新加载 | Store 实际内容、新线程模型请求不含旧偏好 |
-| `03_user_isolation.py` | 同一 Store 下按 `user_id` 隔离 | A、B 模型请求互不含对方标记 |
-| `04_update_and_failure.py` | 局部更新保留其他条目，失败编辑不改 Store | 工具状态、更新前后 Store 内容 |
+| 1. 同一 thread 能否恢复 state？ | `01_thread_state.py` | Checkpoint 中的消息和自定义 `topic`；新 thread 的独立状态 |
+| 2. 不同 thread 能否共享用户偏好？ | `02_memory_routing.py` | Store 的 namespace、key、内容和新 thread 的模型请求 |
+| 3. `memory=` 会自动保存吗？ | `02_memory_routing.py` | 加载前后模型请求、真实 `edit_file` 结果、缺失文件及 Store 内容 |
+| 4. CompositeBackend 如何路由？ | `02_memory_routing.py` | thread A、B 的 state 文件与 Store 中去除路由前缀的 key |
+| 5. 工具如何暂停和恢复？ | `03_hitl_review.py` | `action_requests`、Checkpoint、中断前后执行记录和不同 thread 状态 |
+| 6. 四种审核决定有何区别？ | `03_hitl_review.py` | 实际执行参数、ToolMessage，以及 `respond` 时工具没有执行 |
+| 7. `when` 与文件权限如何工作？ | `03_hitl_review.py` | 条件放行与拒绝、文件权限 `interrupt` 和 `deny` 的结果 |
+| 8. 恢复时节点会重跑吗？ | `04_interrupt_replay.py` | 中断前后分别记录的执行次数 |
 
-## 实验边界
+## 阅读和验证边界
 
-- `InMemoryStore` 和 `InMemorySaver` 只在当前进程内有效；本组验证跨线程，不验证重启后的持久化。
-- live 脚本检查本次模型的实际工具行为；模型服务或提示词变化可能使调用路径不同，断言失败时应查看打印的工具轨迹与 LangSmith run。
-- `memory=["/memories/preferences.md"]` 加载已有文件。每组实验用 `seed()` 预置 Store，且只在新 Store 上执行，避免覆盖已有偏好。
-- `CompositeBackend` 挂载 `/memories/` 后，Agent 可见路径是 `/memories/preferences.md`，底层 Store key 是 `/preferences.md`。
+- `_support.py` 提供预设模型；模型回复和工具调用由实验指定，但图执行、工具、权限、Checkpointer 和 Store 仍真实运行。因此结果不能证明真实模型一定会选择正确工具。
+- `InMemorySaver` 和 `InMemoryStore` 只在当前进程内有效；实验验证跨线程访问，不验证重启后的持久化。namespace 分组也不能替代身份认证和授权。
+- `when` 示例的字符串判断仅用于展示机制，不是可靠的真实路径安全检查。文件权限实验仅写入运行期间创建的临时目录。
+- 如果要进一步观察真实模型的工具选择，需要另行配置模型服务和追踪，并检查实际工具调用和存储结果。

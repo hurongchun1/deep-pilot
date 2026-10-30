@@ -19,6 +19,7 @@ from _scripted import ScriptedModel, skill_file
 from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend, StoreBackend
 from deepagents.backends.utils import create_file_data
+from langchain.tools import ToolRuntime
 from langchain_core.messages import AIMessage
 from langchain_core.tracers.langchain import wait_for_all_tracers
 from langgraph.checkpoint.memory import InMemorySaver
@@ -57,20 +58,20 @@ def state_backend_case() -> None:
         # 配置后，invoke 还需要传 config={"configurable": {"thread_id": "state-a"}}。
         checkpointer=InMemorySaver(),
     )
-    graph.invoke(
-        {
-            "messages": [{"role": "user", "content": "列出可用 Skill"}],
-            # 第一次调用时已经通过 files 提供了 Skill，这些内容进入Agent的 state后，checkpointer 会随着整个 state 一起保存 。
-            # 以后使用同一个 thread_id 继续调用，就可以恢复这些文件，不必每次重新传入 SKILL
-            # 这里上传的files更像是用户将skill文件的内容上传给agent
-            "files": {
-                "/skills/state-guide/SKILL.md": create_file_data(
-                    skill_file("state-guide", "STATE_MARKER：仅在本次输入的 state 中注入")
-                )
-            },
+    input_state = {
+        "messages": [{"role": "user", "content": "列出可用 Skill"}],
+        "files": {
+            "/skills/state-guide/SKILL.md": create_file_data(
+                skill_file("state-guide", "STATE_MARKER")
+            )
         },
-        # 配了 checkpointer 就必须告诉它这次操作属于哪个线程，否则 LangGraph 会
-        # 抛 ValueError: Checkpointer requires one or more of ... thread_id ...
+    }
+
+    _ = graph.invoke(
+        input_state,   # pyright: ignore[reportArgumentType]
+        # context：给 Agent的节点、工具或中间件提供本次运行需要的业务信息，例如当前用户是谁
+        context = "",
+        # config：告诉框架这次运行怎么管理，例如属于哪个 thread_id
         config={"configurable": {"thread_id": "state-a"}},
     )
     assert "STATE_MARKER" in model.prompts[0]

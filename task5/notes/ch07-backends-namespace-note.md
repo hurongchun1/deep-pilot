@@ -92,6 +92,31 @@ namespace=lambda _rt: ("shared-skills",)  # 单元素元组需要逗号
 
 `_rt` 的下划线表示这个例子不使用运行时信息，仍然是一个普通参数。
 
+### 对比：固定的角色 Skill 分组和动态的用户记忆分组
+
+下面两种写法都用元组标识 Store 中的数据分组，但它们的来源和共享维度不同：
+
+```python
+# 固定值：在直接操作 Store 时使用这个 namespace
+role_namespace = ("role-skills", "company-a", "engineering")
+
+# 动态值：StoreBackend 在运行时根据 context 生成 namespace
+user_namespace = lambda rt: (rt.context.user_id, "memories")
+```
+
+| 对比项 | 固定的角色 Skill 分组 | 动态的用户记忆分组 |
+| --- | --- | --- |
+| 元素含义 | `role-skills` 是分类，`company-a` 是组织，`engineering` 是角色 | `user_id` 区分用户，`memories` 是分类 |
+| 值如何产生 | 直接写出元组；不会因调用者改变 | 运行时读取 `rt.context.user_id`，返回对应元组 |
+| 共享条件 | 在此设计中，组织和角色相同，且分类前缀相同 | 在此设计中，用户 ID 相同，且分类前缀相同 |
+| 典型用途 | 同一组织、同一角色共享 Skills | 同一用户的不同会话共享长期偏好 |
+
+例如，`user_id` 为 `user-123` 时，动态函数返回 `("user-123", "memories")`；换成 `user-456`，则返回另一个分组。两个不同的 context 对象只要 `user_id` 相同，就会生成相同的 namespace。
+
+固定元组中的组织和角色不会自动从登录信息变化。如果希望按调用者动态选择角色 Skill，需要像本节前面的例子一样，从 `rt.context.org_id` 和 `rt.context.role` 生成元组。
+
+两种方案要访问同一条记录，都还需要连接同一份 Store 数据，并使用相同的完整 namespace 和 key。相同 namespace 只说明可以定位到同一数据组，不代表内容已成功写入，或已经自动传给模型。元组的顺序也参与区分：`("user-123", "memories")` 和 `("memories", "user-123")` 是不同的分组。
+
 当前项目锁定版本对 namespace 有命名校验：元组不能为空；每项是非空字符串，允许字母、数字以及 `-_.@+:~`，不接受通配符等字符。
 
 ## 四、放入哪些字段，就按哪些维度共享
