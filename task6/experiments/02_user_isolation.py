@@ -10,16 +10,20 @@ def main():
     agent = memory_agent(model, store, memory=["/memories/preferences.md"])
     for user in ("alice", "bob"):
         run(agent, f"{user}-new", user=user)
-    assert "ALICE_ONLY" in model.prompts[0] and "BOB_ONLY" not in model.prompts[0]
-    assert "BOB_ONLY" in model.prompts[1] and "ALICE_ONLY" not in model.prompts[1]
+    assert "ALICE_ONLY" in model.prompts[0] and "BOB_ONLY" not in model.prompts[0], \
+        "Alice 的提示未正确隔离偏好"
+    print("PASS 1/3：Alice 只加载自己的偏好。")
+    assert "BOB_ONLY" in model.prompts[1] and "ALICE_ONLY" not in model.prompts[1], \
+        "Bob 的提示未正确隔离偏好"
+    print("PASS 2/3：Bob 只加载自己的偏好。")
 
     # 反例：写入 alice 的偏好却错误使用所有人共享的 namespace。
     seed(store, "/preferences.md", "ALICE_ONLY：简洁回答", "shared")
     shared_model = ScriptedModel(replies=[done()])
     shared = memory_agent(shared_model, store, memory=["/memories/preferences.md"], shared=True)
     run(shared, "bob-shared", user="bob")
-    assert "ALICE_ONLY" in shared_model.prompts[0]
-    print("PASS：用户 namespace 正确隔离；固定 namespace 反例暴露串记忆。")
+    assert "ALICE_ONLY" in shared_model.prompts[0], "共享 namespace 反例未加载 Alice 的偏好"
+    print("PASS 3/3：共享 namespace 反例让 Bob 读到了 Alice 的偏好。")
     print("这里证明实际加载内容；回答风格请使用 07_live_assistant.py 观察。")
 
 

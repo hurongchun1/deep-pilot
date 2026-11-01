@@ -1,0 +1,39 @@
+version = 2
+template = "deepagents/content-builder"
+name = "Release Pilot"
+description = "青柠清单 v1.2 上线计划助手。"
+env_file = ".env"
+guide = "README.md"
+
+[tools]
+required = ["uv"]
+
+[paths]
+required = ["pyproject.toml", "langgraph.json"]
+
+[services.langgraph]
+name = "AgentSeek API 服务"
+url = "http://127.0.0.1:2025"
+tech = "agentseek-api"
+kind = "api"
+display = "default"
+primary = true
+links = { api_docs = "http://127.0.0.1:2025/docs", studio = "https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2025" }
+
+[processes.langgraph]
+command = ["uv", "run", "--frozen", "agentseek-api", "dev", "--port", "2025"]
+
+[checks.langgraph]
+type = "http"
+target = "http://127.0.0.1:2025/health"
+service = "langgraph"
+timeout = 2.0
+attempts = 3
+
+[tasks.sync]
+description = "安装锁定版本的依赖。"
+command = ["uv", "sync", "--frozen"]
+
+[tasks.course-check]
+description = "运行可确定性复现的集成实验。"
+command = ["uv", "run", "--frozen", "pytest", "tests", "-q"]

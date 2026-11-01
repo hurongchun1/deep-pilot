@@ -28,27 +28,30 @@ def main():
                               config=config(thread), version="v2")
         if mode in ("approve", "reject", "approve-then-deny"):
             requests(result)
-            assert agent.get_state(config(thread)).values["files"] == files
+            assert agent.get_state(config(thread)).values["files"] == files, \
+                f"{name} {args['file_path']}：审批前文件已经改变"
             # 删除父目录可先触发中断；批准也不能绕过受保护后代的 deny。
             decision = "approve" if mode == "approve-then-deny" else mode
             result = resume(agent, thread, [{"type": decision, "message": "本次实验决策"}])
         else:
-            assert not result.interrupts
+            assert not result.interrupts, f"{name} {args['file_path']}：不应触发审批"
         after = agent.get_state(config(thread)).values["files"]
         if mode in ("deny", "reject", "approve-then-deny"):
-            assert after == files, "拒绝后文件发生改变"
+            assert after == files, f"{name} {args['file_path']}：{mode} 后文件发生改变"
             if mode != "reject":
                 assert any("permission denied" in str(m.content).lower()
-                           for m in result.value["messages"] if isinstance(m, ToolMessage))
+                           for m in result.value["messages"] if isinstance(m, ToolMessage)), \
+                    f"{name} {args['file_path']}：缺少权限拒绝的工具结果"
         else:
             tools_ok(result)
             path = args["file_path"]
             if name == "delete":
-                assert path not in after
+                assert path not in after, f"{name} {path}：批准后文件仍存在"
             else:
                 expected = args.get("content", args.get("new_string"))
-                assert expected in after[path]["content"]
-        print(f"PASS：{name} {args['file_path']} → {mode}")
+                assert path in after and expected in after[path]["content"], \
+                    f"{name} {path}：文件内容未按预期更新"
+        print(f"PASS {index + 1}/{len(cases)}：{name} {args['file_path']} → {mode}")
 
 
 if __name__ == "__main__":

@@ -28,8 +28,8 @@ def main():
             "ask_user": {"allowed_decisions": ["respond"]},
         })
         result = run(agent, decision)
-        assert len(requests(result)) == 1
-        assert not sent and not asked
+        assert len(requests(result)) == 1, f"{decision}：预期只有一个待审批动作"
+        assert not sent and not asked, f"{decision}：审批前工具已执行"
         review = {"type": decision}
         if decision == "edit":
             review["edited_action"] = {"name": "send_email", "args": {
@@ -39,14 +39,17 @@ def main():
         elif decision == "respond":
             review["message"] = "请使用中文。"
         result = resume(agent, decision, [review])
-        assert not result.interrupts
-        assert len(sent) == (1 if decision in ("approve", "edit") else 0)
+        assert not result.interrupts, f"{decision}：恢复后仍有待审批动作"
+        assert len(sent) == (1 if decision in ("approve", "edit") else 0), \
+            f"{decision}：实际发送次数不符合预期：{len(sent)}"
         if sent:
-            assert sent[0]["to"] == ("new@example.test" if decision == "edit" else "old@example.test")
-        assert not asked
+            assert sent[0]["to"] == ("new@example.test" if decision == "edit" else "old@example.test"), \
+                f"{decision}：收件人不符合审批结果：{sent[0]['to']}"
+        assert not asked, f"{decision}：ask_user 工具体不应执行"
         if decision == "respond":
-            assert any(m.content == "请使用中文。" for m in result.value["messages"] if isinstance(m, ToolMessage))
-        print(f"PASS：{decision}，实际发送记录={sent}")
+            assert any(m.content == "请使用中文。" for m in result.value["messages"] if isinstance(m, ToolMessage)), \
+                "respond：反馈没有进入工具结果"
+        print(f"PASS {('approve', 'edit', 'reject', 'respond').index(decision) + 1}/5：{decision}，实际发送记录={sent}")
 
     # 同一批的决策必须与 action_requests 数量、顺序一致。
     sent.clear()
@@ -57,10 +60,11 @@ def main():
                               interrupt_on={"send_email": {"allowed_decisions": ["approve", "reject"]}})
     result = run(batch, "batch")
     actions = requests(result)
-    assert len(actions) == 2 and not sent
+    assert len(actions) == 2 and not sent, "批量审批前应有两个待审批动作且没有发送记录"
     resume(batch, "batch", [{"type": "approve"}, {"type": "reject", "message": "第二封不要发送"}])
-    assert [entry["to"] for entry in sent] == ["first@example.test"]
-    print("PASS：批量审批按动作顺序处理。")
+    assert [entry["to"] for entry in sent] == ["first@example.test"], \
+        f"批量审批应只发送第一封，实际记录：{sent}"
+    print("PASS 5/5：批量审批按动作顺序处理，只发送第一封。")
 
 
 if __name__ == "__main__":

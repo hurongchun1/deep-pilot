@@ -1,0 +1,37 @@
+{
+  "mode": "scripted",
+  "working_model_calls": 10,
+  "memory_visible_in_new_thread": true,
+  "tool_calls": [
+    "write_todos",
+    "read_file",
+    "read_file",
+    "read_source",
+    "read_source",
+    "save_plan",
+    "read_plan",
+    "check_plan",
+    "write_todos"
+  ],
+  "todo_states": [
+    [
+      "in_progress"
+    ],
+    [
+      "completed"
+    ]
+  ],
+  "check_plan": {
+    "ok": true,
+    "missing": [],
+    "path": "artifacts/qingning-release-plan.md"
+  },
+  "final_file_check": {
+    "ok": true,
+    "missing": [],
+    "path": "artifacts/qingning-release-plan-offline.md"
+  },
+  "artifact": "artifacts/qingning-release-plan-offline.md",
+  "artifact_sha256": "1fe57ac0d194f96864968218f4aad3c7c38088740f8e9127792223bd93d15a0d",
+  "meaning": "预设模型回复；只证明 Agent 图、中间件、Skill 读取、记忆加载和工具链运行。"
+}

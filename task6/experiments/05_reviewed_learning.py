@@ -7,7 +7,7 @@ def main():
     original = "# 回答规则\n暂无长期规则。"
     proposed = "先给最小可运行示例，再解释原理。"
     narrowed = "只有用户要求代码时才提供示例。"
-    for decision in ("approve", "edit", "reject"):
+    for index, decision in enumerate(("approve", "edit", "reject"), start=1):
         store = InMemoryStore()
         seed(store, "/AGENTS.md", original)
         model = ScriptedModel(replies=[call("edit_file", file_path="/memories/AGENTS.md",
@@ -17,7 +17,7 @@ def main():
         ])
         result = run(agent, "feedback", "以后先给示例再解释，请记住。")
         requests(result)
-        assert content(store, "/AGENTS.md") == original
+        assert content(store, "/AGENTS.md") == original, f"{decision}：审批前规则已经改变"
         review = {"type": decision}
         if decision == "edit":
             review["edited_action"] = {"name": "edit_file", "args": {
@@ -26,12 +26,13 @@ def main():
             review["message"] = "只是本次要求，不要保存或重试。"
         resume(agent, "feedback", [review])
         expected = {"approve": proposed, "edit": narrowed, "reject": "暂无长期规则。"}[decision]
-        assert content(store, "/AGENTS.md") == "# 回答规则\n" + expected
+        assert content(store, "/AGENTS.md") == "# 回答规则\n" + expected, \
+            f"{decision}：Store 中的规则不符合审批结果"
         run(agent, "fresh-question", "解释 Python 生成器")
-        assert expected in model.prompts[-1]
+        assert expected in model.prompts[-1], f"{decision}：新线程未加载预期规则"
         if decision != "approve":
-            assert proposed not in model.prompts[-1]
-        print(f"PASS：{decision}，新线程加载规则：{expected}")
+            assert proposed not in model.prompts[-1], f"{decision}：新线程仍加载了未批准的规则"
+        print(f"PASS {index}/3：{decision}，Store 与新线程提示中的规则：{expected}")
     print("离线只证明保存与注入正确；真实回答是否遵循规则，用 07 实验观察。")
 
 

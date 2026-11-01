@@ -18,6 +18,8 @@ env/
 task2/.env
 task6/.env
 task7/.env
+task8/.env
+task8-legacy-20261101/
 task2/lab-output/
 
 # Test and type-checker caches

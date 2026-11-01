@@ -1,0 +1,5 @@
+{
+  "dependencies": ["."],
+  "graphs": {"release_pilot": "./agent.py:graph"},
+  "env": "./.env"
+}
