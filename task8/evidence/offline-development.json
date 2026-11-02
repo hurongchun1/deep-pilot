@@ -1,0 +1,38 @@
+{
+  "mode": "scripted",
+  "scenario": "development",
+  "request": "我要在一个周末做一个本地命令行待办工具，支持新增、列出和完成任务，数据存 JSON，不做登录和网页，请拆成行动计划。",
+  "memory_visible_in_new_thread": true,
+  "tool_calls": [
+    "write_todos",
+    "read_file",
+    "read_file",
+    "save_plan",
+    "read_plan",
+    "check_plan",
+    "write_todos"
+  ],
+  "todo_states": [
+    [
+      "in_progress"
+    ],
+    [
+      "completed"
+    ]
+  ],
+  "check_plan": {
+    "ok": true,
+    "missing": [],
+    "empty": [],
+    "path": "artifacts/development.md"
+  },
+  "final_file_check": {
+    "ok": true,
+    "missing": [],
+    "empty": [],
+    "path": "artifacts/development-plan-offline.md"
+  },
+  "artifact": "artifacts/development-plan-offline.md",
+  "artifact_sha256": "fe302e6f239b2a13e303afbdb1491bb6df7643d881795cd44554888415244bdd",
+  "meaning": "预设模型回复；只验证图、中间件、Skill、跨会话偏好和文件工具，不证明真实模型规划能力。"
+}

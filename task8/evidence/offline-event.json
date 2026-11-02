@@ -1,0 +1,38 @@
+{
+  "mode": "scripted",
+  "scenario": "event",
+  "request": "我想筹备一次 10 人的线下读书会，准备期一周，活动 90 分钟，预算未定，请给一个筹备和执行计划。",
+  "memory_visible_in_new_thread": true,
+  "tool_calls": [
+    "write_todos",
+    "read_file",
+    "read_file",
+    "save_plan",
+    "read_plan",
+    "check_plan",
+    "write_todos"
+  ],
+  "todo_states": [
+    [
+      "in_progress"
+    ],
+    [
+      "completed"
+    ]
+  ],
+  "check_plan": {
+    "ok": true,
+    "missing": [],
+    "empty": [],
+    "path": "artifacts/event.md"
+  },
+  "final_file_check": {
+    "ok": true,
+    "missing": [],
+    "empty": [],
+    "path": "artifacts/event-plan-offline.md"
+  },
+  "artifact": "artifacts/event-plan-offline.md",
+  "artifact_sha256": "800f921c9bcf9d9ef0e424425787bef4be78113b7b1c0a3233e4e86d487db6fa",
+  "meaning": "预设模型回复；只验证图、中间件、Skill、跨会话偏好和文件工具，不证明真实模型规划能力。"
+}

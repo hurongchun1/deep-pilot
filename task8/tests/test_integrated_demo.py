@@ -1,5 +1,7 @@
 import json
+import runpy
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -8,8 +10,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 import agent
 import tools
-from sample_plan import PLAN
-from scripted_model import ScriptedModel, call
+from sample_plan import SCENARIOS, sample_plan
+from scripted_model import ScriptedModel, call, planning_model
 
 
 @pytest.fixture
@@ -25,76 +27,109 @@ def workspace(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_release_plan_in_one_graph_across_two_threads(workspace):
+@pytest.mark.parametrize("scenario", SCENARIOS)
+def test_planning_across_new_sessions_without_sources(workspace, scenario):
     writer = ScriptedModel(replies=[
         call("save_preference", {"key": "format", "value": "中文分节 Markdown"}, "remember"),
         AIMessage(content="已保存格式偏好。"),
     ])
-    graph = agent.build_graph(writer, root=workspace, checkpointer=InMemorySaver())
-    first = graph.invoke(
-        {"messages": [{"role": "user", "content": "请记住：以后写上线计划用中文分节 Markdown。"}]},
-        {"configurable": {"thread_id": "remember"}},
+    agent.build_graph(writer, root=workspace).invoke(
+        {"messages": [{"role": "user", "content": "请记住：以后写行动计划用中文分节 Markdown。"}]},
     )
-    assert "format: 中文分节 Markdown" in (workspace / "memory/preferences.md").read_text(encoding="utf-8")
-    assert any(message.type == "tool" and message.tool_call_id == "remember"
-               for message in first["messages"])
-
-    model = ScriptedModel(replies=[
-        call("write_todos", {"todos": [{"content": "读取资料并制定上线计划", "status": "in_progress"}]}, "plan"),
-        call("read_file", {"file_path": "/skills/release-plan/SKILL.md"}, "skill"),
-        call("read_file", {"file_path": "/skills/release-plan/references/plan-outline.md"}, "outline"),
-        call("read_source", {"name": "product-brief.md"}, "brief"),
-        call("read_source", {"name": "release-constraints.md"}, "constraints"),
-        call("save_plan", {"slug": "qingning-release-plan", "content": PLAN}, "save"),
-        call("read_plan", {"slug": "qingning-release-plan"}, "readback"),
-        call("check_plan", {"slug": "qingning-release-plan"}, "check"),
-        call("write_todos", {"todos": [{"content": "读取资料并制定上线计划", "status": "completed"}]}, "done"),
-        AIMessage(content="上线计划已保存，结构检查通过。"),
-    ])
+    model = planning_model(scenario)
     graph = agent.build_graph(model, root=workspace, checkpointer=InMemorySaver())
     snapshots = list(graph.stream(
-        {"messages": [{"role": "user", "content": "为青柠清单 v1.2 制定上线计划。"}]},
-        {"configurable": {"thread_id": "release"}}, stream_mode="values",
+        {"messages": [{"role": "user", "content": SCENARIOS[scenario]["request"]}]},
+        {"configurable": {"thread_id": scenario}}, stream_mode="values",
     ))
     final = snapshots[-1]
-    messages = {m.tool_call_id: m.content for m in final["messages"] if m.type == "tool"}
+    messages = {m.tool_call_id: m for m in final["messages"] if m.type == "tool"}
     assert "format: 中文分节 Markdown" in model.prompts[0]
     assert "请记住：以后" not in model.prompts[0]
-    assert "release-plan" in model.prompts[0]
-    assert {"write_todos", "read_file", "read_source", "save_plan", "read_plan",
-            "check_plan", "save_preference"} <= set(model.seen_tools)
-    assert "上线计划结构" in messages["outline"]
-    assert "青柠清单 v1.2 产品简报" in messages["brief"]
-    assert messages["readback"] == PLAN
-    assert json.loads(messages["check"])["ok"] is True
-    assert (workspace / "artifacts/qingning-release-plan.md").read_text(encoding="utf-8") == PLAN
-    statuses = [s["todos"][0]["status"] for s in snapshots if s.get("todos")]
-    assert "in_progress" in statuses and statuses[-1] == "completed"
+    assert "task-planning" in model.prompts[0]
+    assert "行动计划结构" in messages["outline"].text
+    assert all(m.status != "error" for m in messages.values())
+    assert json.loads(messages["check"].text)["ok"] is True
+    assert (workspace / f"artifacts/{scenario}.md").read_text(encoding="utf-8") == sample_plan(scenario)
+    assert final["todos"][0]["status"] == "completed"
+    assert not any(m.name == "read_source" for m in messages.values())
 
 
-def test_checker_rejects_missing_sections_and_sources(workspace):
-    tools.save_plan.invoke({"slug": "incomplete", "content": "# 只有标题"})
+def test_optional_source_discovery_and_reading(workspace):
+    (workspace / "sources/new-task.md").write_text("本周只有 3 小时。", encoding="utf-8")
+    model = ScriptedModel(replies=[
+        call("list_sources", {}, "list"),
+        call("read_source", {"name": "new-task.md"}, "source"),
+        AIMessage(content="补充资料中说明本周只有 3 小时。"),
+    ])
+    final = agent.build_graph(model, root=workspace).invoke(
+        {"messages": [{"role": "user", "content": "请读取 new-task.md 的限制。"}]},
+    )
+    results = {m.tool_call_id: m for m in final["messages"] if m.type == "tool"}
+    assert "new-task.md" in json.loads(results["list"].text)
+    assert results["source"].text == "本周只有 3 小时。"
+
+
+def test_checker_rejects_missing_and_empty_sections(workspace):
+    tools.save_plan.invoke({"slug": "incomplete", "content": "# 标题\n\n## 任务目标\n\n## 已知条件\n两周。"})
     result = json.loads(tools.check_plan.invoke({"slug": "incomplete"}))
     assert result["ok"] is False
-    assert "回滚预案" in result["missing"]
-    assert "sources/product-brief.md" in result["missing"]
+    assert "风险与调整" in result["missing"]
+    assert "任务目标" in result["empty"]
 
 
-def test_checker_rejects_missing_rollout_stage(workspace):
-    tools.save_plan.invoke({"slug": "missing-stage", "content": PLAN.replace("50%", "半数")})
-    result = json.loads(tools.check_plan.invoke({"slug": "missing-stage"}))
-    assert result["ok"] is False
-    assert "50%" in result["missing"]
+def test_checker_accepts_body_under_subheadings(workspace):
+    plan = sample_plan("learning").replace("## 行动步骤\n", "## 行动步骤\n### 第一阶段\n")
+    tools.save_plan.invoke({"slug": "nested", "content": plan})
+    assert json.loads(tools.check_plan.invoke({"slug": "nested"}))["ok"] is True
 
 
-def test_invalid_preference_key_returns_feedback_without_writing(workspace):
+@pytest.mark.parametrize("complete", [True, False])
+def test_live_entry_with_scripted_model_preserves_evidence(workspace, monkeypatch, complete):
+    # 验证真实模型入口的编排和失败取证，不发送网络请求。
+    class LiveScriptedModel(ScriptedModel):
+        model_name: str = "scripted-entry-test"
+
+    replies = [
+        call("save_preference", {"key": "format", "value": "中文分节 Markdown"}, "remember"),
+        AIMessage(content="已保存偏好。"),
+    ]
+    replies += planning_model("event").replies if complete else [AIMessage(content="未生成计划。")]
+    model = LiveScriptedModel(replies=replies)
+    original_build = agent.build_graph
+    monkeypatch.setattr(agent, "PROJECT_ROOT", workspace)
+    monkeypatch.setattr(agent, "build_model", lambda: model)
+    monkeypatch.setattr(agent, "build_graph", lambda model, **kwargs: original_build(model, root=workspace, **kwargs))
+    monkeypatch.setattr(sys, "argv", ["live_demo.py", "--task", SCENARIOS["event"]["request"], "--slug", "event"])
+    main = runpy.run_path(str(Path(__file__).parents[1] / "experiments/live_demo.py"))["main"]
+    if complete:
+        main()
+    else:
+        with pytest.raises(RuntimeError, match="未覆盖全部必需步骤"):
+            main()
+    paths = list((workspace / "evidence").glob("planner-live-*.json"))
+    assert len(paths) == 1
+    evidence = json.loads(paths[0].read_text(encoding="utf-8"))
+    assert evidence["request"] == SCENARIOS["event"]["request"]
+    assert evidence["memory_visible_in_new_thread"] is True
+    assert bool(evidence["error"]) is not complete
+    assert bool(evidence["artifact_sha256"]) is complete
+
+
+def test_invalid_preference_does_not_write(workspace):
     original = (workspace / "memory/preferences.md").read_text(encoding="utf-8")
-    feedback = tools.save_preference.invoke({"key": "语言", "value": "中文"})
+    feedback = tools.save_preference.invoke({"key": "目标", "value": "学 Python"})
     assert "language、tone 或 format" in feedback
     assert (workspace / "memory/preferences.md").read_text(encoding="utf-8") == original
 
 
 @pytest.mark.parametrize("slug", ["../escape", "/tmp/escape", "a/b", ""])
-def test_plan_slug_does_not_escape_project(workspace, slug):
+def test_plan_slug_stays_inside_workspace(workspace, slug):
     with pytest.raises(ValueError):
         tools.save_plan.invoke({"slug": slug, "content": "bad"})
+
+
+@pytest.mark.parametrize("name", ["../AGENTS.md", "..\\AGENTS.md", "/tmp/escape.md", "note.txt"])
+def test_source_path_stays_inside_sources(workspace, name):
+    with pytest.raises(ValueError):
+        tools.read_source.invoke({"name": name})

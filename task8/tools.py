@@ -1,4 +1,4 @@
-"""上线计划助手的资料、文件和结构检查工具。"""
+"""通用任务规划助手的资料、文件和结构检查工具。"""
 
 from __future__ import annotations
 
@@ -9,14 +9,9 @@ from pathlib import Path
 from langchain_core.tools import tool
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-SOURCE_NAMES = {"product-brief.md", "release-constraints.md"}
 REQUIRED_HEADINGS = (
-    "发布目标", "输入依据", "发布步骤", "验收指标", "回滚预案",
-    "风险与负责人", "资料来源",
-)
-REQUIRED_MARKERS = (
-    "sources/product-brief.md", "sources/release-constraints.md",
-    "10%", "50%", "100%", "回滚",
+    "任务目标", "已知条件", "行动步骤", "验收标准", "风险与调整",
+    "待确认事项", "信息来源",
 )
 
 
@@ -35,16 +30,25 @@ def _plan_path(slug: str) -> Path:
 
 
 @tool
+def list_sources() -> str:
+    """列出 sources/ 下可选的 Markdown 补充资料；不要求每个任务都读取。"""
+    folder = _inside("sources")
+    names = sorted(path.name for path in folder.glob("*.md")
+                   if path.is_file() and path.resolve().is_relative_to(folder.resolve()))
+    return json.dumps(names, ensure_ascii=False)
+
+
+@tool
 def read_source(name: str) -> str:
-    """按准确文件名读取 sources/ 中的一份产品发布资料。"""
-    if name not in SOURCE_NAMES:
-        raise ValueError(f"未知的资料文件：{name}")
+    """读取 sources/ 中的一份 Markdown 补充资料，文件名从 list_sources 获取。"""
+    if not re.fullmatch(r"[^/\\]+\.md", name) or name in {"..", "."}:
+        raise ValueError("name 必须是 sources/ 下的 Markdown 文件名")
     return _inside("sources", name).read_text(encoding="utf-8")
 
 
 @tool
 def save_plan(slug: str, content: str) -> str:
-    """将 Markdown 上线计划保存为 artifacts/<slug>.md。"""
+    """将 Markdown 行动计划保存为 artifacts/<slug>.md。"""
     if not content.strip():
         raise ValueError("计划内容不能为空")
     target = _plan_path(slug)
@@ -55,18 +59,27 @@ def save_plan(slug: str, content: str) -> str:
 
 @tool
 def read_plan(slug: str) -> str:
-    """读回 artifacts/<slug>.md 中已保存的上线计划。"""
+    """读回 artifacts/<slug>.md 中已保存的行动计划。"""
     return _plan_path(slug).read_text(encoding="utf-8")
 
 
 @tool
 def check_plan(slug: str) -> str:
-    """检查已保存计划的章节、资料来源和灰度阶段文本。"""
+    """仅检查已保存计划的必要章节及非空正文，不评估可执行性或事实准确性。"""
     content = _plan_path(slug).read_text(encoding="utf-8")
-    missing = [heading for heading in REQUIRED_HEADINGS
-               if not re.search(rf"(?m)^#{{1,3}}\s+{re.escape(heading)}\s*$", content)]
-    missing.extend(marker for marker in REQUIRED_MARKERS if marker not in content)
-    return json.dumps({"ok": not missing, "missing": missing,
+    sections = {}
+    matches = list(re.finditer(r"(?m)^(#{1,6})[ \t]+([^\r\n]+)[ \t]*$", content))
+    for index, match in enumerate(matches):
+        end = next((following.start() for following in matches[index + 1:]
+                    if len(following.group(1)) <= len(match.group(1))), len(content))
+        body = content[match.end():end]
+        # 子标题下的正文也属于本节，但只有子标题仍算空章节。
+        body = re.sub(r"(?m)^#{1,6}[ \t]+[^\r\n]*$", "", body)
+        sections[match.group(2).strip()] = body.strip()
+    missing = [heading for heading in REQUIRED_HEADINGS if heading not in sections]
+    empty = [heading for heading in REQUIRED_HEADINGS
+             if heading in sections and not sections[heading]]
+    return json.dumps({"ok": not missing and not empty, "missing": missing, "empty": empty,
                        "path": f"artifacts/{slug}.md"}, ensure_ascii=False)
 
 

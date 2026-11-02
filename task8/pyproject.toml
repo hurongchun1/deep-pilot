@@ -1,7 +1,7 @@
 [project]
 name = "task8"
 version = "0.1.0"
-description = "青柠清单 v1.2 上线计划 AgentSeek 应用。"
+description = "通用任务规划助手：将学习、开发和活动目标拆成行动计划。"
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "deepagents==0.7.8",

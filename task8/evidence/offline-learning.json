@@ -1,0 +1,38 @@
+{
+  "mode": "scripted",
+  "scenario": "learning",
+  "request": "我会 Python 基础，想用两周学会用 pandas 清洗 CSV，每天 1 小时，最终交付一个清洗脚本和前后数据对照。请制定计划。",
+  "memory_visible_in_new_thread": true,
+  "tool_calls": [
+    "write_todos",
+    "read_file",
+    "read_file",
+    "save_plan",
+    "read_plan",
+    "check_plan",
+    "write_todos"
+  ],
+  "todo_states": [
+    [
+      "in_progress"
+    ],
+    [
+      "completed"
+    ]
+  ],
+  "check_plan": {
+    "ok": true,
+    "missing": [],
+    "empty": [],
+    "path": "artifacts/learning.md"
+  },
+  "final_file_check": {
+    "ok": true,
+    "missing": [],
+    "empty": [],
+    "path": "artifacts/learning-plan-offline.md"
+  },
+  "artifact": "artifacts/learning-plan-offline.md",
+  "artifact_sha256": "b8f16ee2f96b82fcd661a3805bcf651f179339949f6b90f2c13a7a462d5ba51a",
+  "meaning": "预设模型回复；只验证图、中间件、Skill、跨会话偏好和文件工具，不证明真实模型规划能力。"
+}

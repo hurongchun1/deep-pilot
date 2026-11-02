@@ -26,7 +26,7 @@ Task 6 已在 [task6/README.md](task6/README.md) 建立第 8 章长期记忆实�
 
 Task 7 在 [task7/README.md](task7/README.md) 实现第 13 章 Grading Rubrics 无密钥小实验，验证评分取证、反馈修订、预算耗尽和不传 Rubric 的行为；[中间件说明](task7/RUBRIC_MIDDLEWARE.md)介绍运行机制与验收边界。
 
-Task 8 是独立的[青柠清单上线计划助手](task8/README.md)：读取虚构产品资料，生成分阶段发布计划，并用工具保存、读回和检查文件。
+Task 8 是独立的[通用任务规划助手](task8/README.md)：将学习、开发、活动等目标拆成行动计划，演示 Skill、待办管理、跨会话偏好以及计划保存、读回和结构检查。
 
 ## 目录结构
 
@@ -47,7 +47,7 @@ task4/                           # Content Builder 后端实验，安装和运�
 task5/                           # 第 7 章 Skills 实验，安装和运行见 task5/README.md
 task6/                           # 第 8 章长期记忆实验，安装和运行见 task6/README.md
 task7/                           # 第 13 章评分量规小实验与中间件说明
-task8/                           # 独立的产品上线计划 Agent 实验
+task8/                           # 通用任务规划 Agent：学习、开发、活动三个案例
 ```
 
 ## 环境配置

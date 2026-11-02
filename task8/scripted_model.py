@@ -14,7 +14,7 @@ class ScriptedModel(BaseChatModel):
 
     @property
     def _llm_type(self):
-        return "release-pilot-scripted"
+        return "task-planner-scripted"
 
     def bind_tools(self, tools, **kwargs):
         self.seen_tools = [tool.name if hasattr(tool, "name") else tool["name"]
@@ -32,3 +32,18 @@ class ScriptedModel(BaseChatModel):
 
 def call(name, args, call_id):
     return AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": call_id}])
+
+
+def planning_model(scenario: str) -> ScriptedModel:
+    from sample_plan import sample_plan
+
+    return ScriptedModel(replies=[
+        call("write_todos", {"todos": [{"content": "拆解目标并保存检查计划", "status": "in_progress"}]}, "todo"),
+        call("read_file", {"file_path": "/skills/task-planning/SKILL.md"}, "skill"),
+        call("read_file", {"file_path": "/skills/task-planning/references/plan-outline.md"}, "outline"),
+        call("save_plan", {"slug": scenario, "content": sample_plan(scenario)}, "save"),
+        call("read_plan", {"slug": scenario}, "readback"),
+        call("check_plan", {"slug": scenario}, "check"),
+        call("write_todos", {"todos": [{"content": "拆解目标并保存检查计划", "status": "completed"}]}, "done"),
+        AIMessage(content="行动计划已保存，结构检查通过，任务尚未实际执行。"),
+    ])
