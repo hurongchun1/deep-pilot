@@ -1,5 +1,16 @@
 """三个离线预设案例；这些计划不是模型自行生成的结果。"""
 
+
+'''
+对应字段中不同的含义：
+1.request：模拟用户提出的问题
+2.goal：任务目标
+3.conditions：已知条件和限制
+4.steps：建议采取的具体步骤
+5.acceptance：怎么判断任务完成
+6.risk：可能遇到的问题及调整方式
+7.unknown：还需要确认的信息
+'''
 SCENARIOS = {
     "learning": {
         "request": "我会 Python 基础，想用两周学会用 pandas 清洗 CSV，每天 1 小时，最终交付一个清洗脚本和前后数据对照。请制定计划。",
@@ -31,6 +42,8 @@ SCENARIOS = {
 }
 
 
+
+# 根据预设案例生成预设数据
 def sample_plan(scenario: str) -> str:
     data = SCENARIOS[scenario]
     headings = {"任务目标": "goal", "已知条件": "conditions", "行动步骤": "steps",
