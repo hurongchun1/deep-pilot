@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from langchain.agents.middleware import TodoListMiddleware
 from langchain_openai import ChatOpenAI
 
-from tools import check_plan, list_sources, read_plan, read_source, save_plan, save_preference
+from task8.tools import check_plan, list_sources, read_plan, read_source, save_plan, save_preference
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 load_dotenv(PROJECT_ROOT / ".env")
@@ -40,8 +40,11 @@ def build_graph(chat_model, *, root: Path = PROJECT_ROOT, checkpointer=None):
         middleware=[
             TodoListMiddleware(),
             MemoryMiddleware(
+                # 提供访问文件的能力，解析这些路径，必须传
                 backend=backend,
+                # 指定需要加载的记忆文件，必传
                 sources=["/AGENTS.md", "/memory/preferences.md"],
+                # 指定记忆内容如何包装进系统提示，不必传
                 system_prompt="<agent_memory>\n{agent_memory}\n</agent_memory>",
             ),
         ],

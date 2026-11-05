@@ -40,7 +40,7 @@ def call(name, args, call_id):
 
 # 为规划按理准备的一套剧本
 def planning_model(scenario: str) -> ScriptedModel:
-    from sample_plan import sample_plan
+    from task8.sample_plan import sample_plan
 
     return ScriptedModel(replies=[
         call("write_todos", {"todos": [{"content": "拆解目标并保存检查计划", "status": "in_progress"}]}, "todo"),

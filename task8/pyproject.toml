@@ -15,7 +15,8 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["agent", "tools", "sample_plan", "scripted_model"]
+packages = ["task8", "task8.experiments"]
+package-dir = {"task8" = "."}
 
 [dependency-groups]
 dev = ["pytest==9.1.1"]

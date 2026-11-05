@@ -5,24 +5,28 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from threading import Lock
 
 from langchain_core.tools import tool
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+# 同一进程内的并发工具调用共用此锁；多个进程需另用文件锁或数据库事务。
+_PREFERENCE_LOCK = Lock()
 REQUIRED_HEADINGS = (
     "任务目标", "已知条件", "行动步骤", "验收标准", "风险与调整",
     "待确认事项", "信息来源",
 )
 
-
+# 检查路径是否位于项目目录内，避免读写其他位置的文件
 def _inside(*parts: str) -> Path:
     root = PROJECT_ROOT.resolve()
+    # joinpath()：只负责拼接路径，不会创建文件夹或文件
     target = root.joinpath(*parts).resolve()
     if not target.is_relative_to(root):
         raise ValueError("路径必须位于项目目录内")
     return target
 
-
+# 检查 slug 是否合法，要求：总长度 1-80个字符，第一个字符必须是小写字母或数字，后续字符可以是小写字母、数字、连字符、下划线。
 def _plan_path(slug: str) -> Path:
     if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,79}", slug):
         raise ValueError("slug 只能包含小写字母、数字、连字符或下划线")
@@ -92,16 +96,19 @@ def save_preference(key: str, value: str) -> str:
     if not value or len(value) > 200 or "\n" in value or "\r" in value:
         return "参数错误：value 必须是不超过 200 字符的非空单行文本；请改正后重试。"
     target = _inside("memory", "preferences.md")
-    entries: dict[str, str] = {}
-    if target.exists():
-        for line in target.read_text(encoding="utf-8").splitlines():
-            if ": " in line and not line.startswith("#"):
-                name, old_value = line.split(": ", 1)
-                if name in {"language", "tone", "format"}:
-                    entries[name] = old_value
-    entries[key] = value
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("# 已保存的偏好\n\n" +
-                      "".join(f"{name}: {entries[name]}\n" for name in sorted(entries)),
-                      encoding="utf-8")
-    return target.read_text(encoding="utf-8")
+    # 必须保护完整的读、改、写过程，只锁最后的写入仍会覆盖其他调用的更新。
+    with _PREFERENCE_LOCK:
+        entries: dict[str, str] = {}
+        if target.exists():
+            for line in target.read_text(encoding="utf-8").splitlines():
+                if ": " in line and not line.startswith("#"):
+                    name, old_value = line.split(": ", 1)
+                    if name in {"language", "tone", "format"}:
+                        entries[name] = old_value
+        entries[key] = value
+        content = "# 已保存的偏好\n\n" + "".join(
+            f"{name}: {entries[name]}\n" for name in sorted(entries)
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        return content

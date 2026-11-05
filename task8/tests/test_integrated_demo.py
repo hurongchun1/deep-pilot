@@ -3,19 +3,34 @@ import runpy
 import shutil
 import sys
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from time import sleep
 
 import pytest
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-import agent
-import tools
-from sample_plan import SCENARIOS, sample_plan
-from scripted_model import ScriptedModel, call, planning_model
+from task8 import agent, tools
+from task8.sample_plan import SCENARIOS, sample_plan
+from task8.scripted_model import ScriptedModel, call, planning_model
 
 
 @pytest.fixture
 def workspace(tmp_path, monkeypatch):
+    '''
+    这个得到的效果在 harness角度来看整个流程：
+    
+    新建聊天
+       ↓
+    建立独立的会话状态，加载规则和允许共享的长期记忆
+       ↓
+    多轮对话，逐步累积本会话的消息、工具结果和任务状态
+       ↓
+    上下文过长，压缩整理，或者新开会话
+       ↓
+    新会话重新加载长期记忆，从新的会话状态开始
+    '''
     root = Path(agent.PROJECT_ROOT)
     for relative in ("AGENTS.md", "memory/preferences.md"):
         target = tmp_path / relative
@@ -29,15 +44,19 @@ def workspace(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("scenario", SCENARIOS)
 def test_planning_across_new_sessions_without_sources(workspace, scenario):
-    writer = ScriptedModel(replies=[
+    writer = ScriptedModel(
+        replies=[
         call("save_preference", {"key": "format", "value": "中文分节 Markdown"}, "remember"),
         AIMessage(content="已保存格式偏好。"),
     ])
     agent.build_graph(writer, root=workspace).invoke(
         {"messages": [{"role": "user", "content": "请记住：以后写行动计划用中文分节 Markdown。"}]},
     )
+
+    # 验证上一次保存的偏好，新会话能否加载到
     model = planning_model(scenario)
-    graph = agent.build_graph(model, root=workspace, checkpointer=InMemorySaver())
+    graph = agent.build_graph(
+        model, root=workspace, checkpointer=InMemorySaver())
     snapshots = list(graph.stream(
         {"messages": [{"role": "user", "content": SCENARIOS[scenario]["request"]}]},
         {"configurable": {"thread_id": scenario}}, stream_mode="values",
@@ -121,6 +140,40 @@ def test_invalid_preference_does_not_write(workspace):
     feedback = tools.save_preference.invoke({"key": "目标", "value": "学 Python"})
     assert "language、tone 或 format" in feedback
     assert (workspace / "memory/preferences.md").read_text(encoding="utf-8") == original
+
+
+def test_concurrent_preferences_preserve_all_keys(workspace, monkeypatch):
+    target = workspace / "memory/preferences.md"
+    original_read = Path.read_text
+
+    def slow_read(path, *args, **kwargs):
+        content = original_read(path, *args, **kwargs)
+        if path == target:
+            # 扩大读取旧值到写回之间的窗口，暴露并发更新丢失。
+            sleep(0.02)
+        return content
+
+    monkeypatch.setattr(Path, "read_text", slow_read)
+    for round_number in range(3):
+        target.write_text("# 已保存的偏好\n", encoding="utf-8")
+        preferences = {
+            "language": f"中文-{round_number}",
+            "format": f"分节 Markdown-{round_number}",
+            "tone": f"简洁-{round_number}",
+        }
+        start = Barrier(len(preferences))
+
+        def save(item):
+            key, value = item
+            start.wait(timeout=5)
+            return tools.save_preference.invoke({"key": key, "value": value})
+
+        with ThreadPoolExecutor(max_workers=len(preferences)) as pool:
+            results = list(pool.map(save, preferences.items()))
+        saved = original_read(target, encoding="utf-8")
+        for (key, value), result in zip(preferences.items(), results):
+            assert f"{key}: {value}\n" in saved
+            assert f"{key}: {value}\n" in result
 
 
 @pytest.mark.parametrize("slug", ["../escape", "/tmp/escape", "a/b", ""])

@@ -5,20 +5,27 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+from pprint import pprint
 from uuid import uuid4
+
+# IDE 直接运行本文件时，将 task8 所在的仓库根目录加入模块搜索路径。
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from sample_plan import SCENARIOS
+from task8.sample_plan import SCENARIOS
 
 
 class PromptRecorder(BaseCallbackHandler):
     def __init__(self):
         self.has_saved_preference: list[bool] = []
-
+    # 准备调用聊天模型时，观察本次即将发送的消息
     def on_chat_model_start(self, serialized, messages, **kwargs):
         for batch in messages:
             prompt = "\n".join(str(message.content) for message in batch)
@@ -39,6 +46,7 @@ def tool_results(messages):
 
 
 def main():
+    # 用来读取并解析你运行的脚本时传入的命令行参数
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", choices=SCENARIOS, default="learning")
     parser.add_argument("--task", help="直接描述你的目标、时间和约束；设置后覆盖预设案例")
@@ -47,10 +55,11 @@ def main():
     if args.task is not None and not args.task.strip():
         parser.error("--task 不能为空")
     # 先校验文件名，避免消耗模型调用后才发现参数错误。
-    from tools import _plan_path, check_plan
+    from task8.tools import _plan_path, check_plan
     artifact = _plan_path(args.slug)
-    from agent import PROJECT_ROOT, build_graph, build_model
+    from task8.agent import PROJECT_ROOT, build_graph, build_model
 
+    
     model = build_model()
     graph = build_graph(model, checkpointer=InMemorySaver())
     run_id = uuid4().hex[:12]
@@ -66,6 +75,13 @@ def main():
             {"messages": [{"role": "user", "content": "请记住：以后写行动计划用中文分节 Markdown 格式。"}]},
             {"configurable": {"thread_id": f"{run_id}-remember"}, "recursion_limit": 30},
         )
+        # 先观察完整状态，再逐条展开消息，查看工具请求和执行结果。
+        print("\n=== graph.invoke 返回的完整状态 remember ===")
+        pprint(remember, width=120, sort_dicts=False)
+        print("\n=== remember 中的消息（按执行顺序）===")
+        for index, message in enumerate(remember.get("messages", []), start=1):
+            print(f"\n第 {index} 条消息，类型：{message.type}")
+            message.pretty_print()
         task = (request + "\n请使用 task-planning Skill 及参考提纲、write_todos。"
                 "按用户给出的目标规划，本地资料仅在相关时读取。"
                 f"使用 save_plan 将计划保存为 {args.slug}，再 read_plan、check_plan，等待各工具结果后回答。")
@@ -83,7 +99,7 @@ def main():
                     and memory_results[item["id"]].status != "error"
                     and "format:" in memory_results[item["id"]].text for item in memory_calls)
         required = {"write_todos", "read_file", "save_plan", "read_plan", "check_plan"}
-        successful = {item["name"] for item in calls if item["id"] in results
+        successful = {item["name"] for item in calls if item["id"] in results  # pyright: ignore[reportUnhashable]
                       and results[item["id"]].status != "error"}
         read_paths = {item["args"].get("file_path") for item in calls
                       if item["name"] == "read_file" and item["id"] in results

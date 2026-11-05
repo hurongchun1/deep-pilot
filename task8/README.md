@@ -40,6 +40,12 @@
 
 ## 本地运行（无需模型密钥）
 
+项目内的 Python 导入统一使用 `task8.*` 包名（例如 `from task8.tools import save_plan`）。
+IDE 打开仓库根目录 `deep-pilot`，并选择 `task8/.venv` 中的 Python 解释器。
+首次使用或更新打包配置后执行下面的 `uv sync --frozen`，将当前包安装到该环境。
+两个实验脚本也支持在 IDE 中直接运行：入口会根据自身文件位置添加仓库根目录，
+不依赖 IDE 的工作目录。仍需选择已安装项目依赖的 Python 3.12 或 3.13 解释器。
+
 在 `task8` 目录执行：
 
 ```powershell

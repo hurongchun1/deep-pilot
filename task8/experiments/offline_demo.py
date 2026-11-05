@@ -7,8 +7,13 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+# IDE 直接运行本文件时，将 task8 所在的仓库根目录加入模块搜索路径。
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
@@ -17,10 +22,9 @@ from langsmith import tracing_context
 os.environ["OPENAI_API_KEY"] = "unused-offline-key"
 os.environ["LANGSMITH_TRACING"] = "false"
 
-import agent  # noqa: E402
-import tools  # noqa: E402
-from sample_plan import SCENARIOS, sample_plan  # noqa: E402
-from scripted_model import ScriptedModel, call, planning_model  # noqa: E402
+from task8 import agent, tools  # noqa: E402
+from task8.sample_plan import SCENARIOS, sample_plan  # noqa: E402
+from task8.scripted_model import ScriptedModel, call, planning_model  # noqa: E402
 
 
 def prepare_workspace(root: Path) -> None:
