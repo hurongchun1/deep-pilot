@@ -55,9 +55,9 @@ def save_plan(slug: str, content: str) -> str:
     """将 Markdown 行动计划保存为 artifacts/<slug>.md。"""
     if not content.strip():
         raise ValueError("计划内容不能为空")
-    target = _plan_path(slug)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content, encoding="utf-8")
+    target = _plan_path(slug) # 得到目标文件路径
+    target.parent.mkdir(parents=True, exist_ok=True)  # 创建父目录
+    target.write_text(content, encoding="utf-8") # 写入文件
     return f"已保存 artifacts/{slug}.md"
 
 
