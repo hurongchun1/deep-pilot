@@ -32,7 +32,8 @@ def prepare_workspace(root: Path) -> None:
         target = root / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text((agent.PROJECT_ROOT / relative).read_text(encoding="utf-8"), encoding="utf-8")
-    shutil.copytree(agent.PROJECT_ROOT / "sources", root / "sources")
+    if (agent.PROJECT_ROOT / "sources").is_dir():
+        shutil.copytree(agent.PROJECT_ROOT / "sources", root / "sources")
     shutil.copytree(agent.PROJECT_ROOT / "skills", root / "skills")
 
 

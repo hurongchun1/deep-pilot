@@ -1,0 +1,672 @@
+\n\n===== PAGE 1 =====\n\n数据访问
+数据库驱动问题？
+为什么导入JDBC场景，官方不导入驱动？
+原因：官方不知道我们接下来是操作什么数据库
+1、数据源的自动配置
+1、导入 JDBC场景
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-jdbc</artifactId>
+</dependency>
+1
+2
+3
+4
+XML 复制代码
+默认版本：<mysql.version>8.0.22</mysql.version>
+依赖导入：
+<dependency>
+    <groupId>mysql</groupId>
+    <artifactId>mysql-connector-java</artifactId>
+</dependency>
+1
+2
+3
+4
+5
+6
+7
+XML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 1/14\n\n===== PAGE 2 =====\n\nDataSourceAutoConfiguration：数据源的自动配置
+修改数据源相关的配置：spring.datasource
+数据库连接池的配置，是自己容器中没有 DataSource才自动配置的
+底层配置好的数据源是：HikariDataSource
+如果你引入配置数据源依赖，但是没有写对应数据源的配置，就会报下面的错误信息
+DataSourceTransactionManagerAutoConfiguration：事务管理的自动配置
+JdbcTemplateAutoConfiguration：JdbcTemplate的自动配置，可以来对数据库进行crud操
+作
+可以修改这个配置项@ConfigurationProperties(prefix="spring.jdbc")来修改
+JdbcTemplate
+JndiDataSourceAutoConfiguration：jndi的自动配置
+XADataSourceAutoConfiguration：分布式事务相关的
+2、分析自动配置
+1、自动配置的类
+●
+○
+○
+○
+●
+●
+○
+●
+●
+3、修改配置项
+@Configuration(proxyBeanMethods = false)
+@Conditional(PooledDataSourceCondition.class)
+@ConditionalOnMissingBean({ DataSource.class, XADataSource.class })
+@Import({ DataSourceConfiguration.Hikari.class, DataSourceConfiguration.To
+DataSourceConfiguration.Dbcp2.class, DataSourceConfiguration.Oracl
+DataSourceConfiguration.Generic.class, DataSourceJmxConfiguration.
+protected static class PooledDataSourceConfiguration {
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+Java 运行代码 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 2/14\n\n===== PAGE 3 =====\n\nhttps://github.com/alibaba/druid <https://github.com/alibaba/druid> 
+整合第三方技术的两种方式
+自定义
+找starter
+3、使用Druid数据源
+1、druid官方github地址
+●
+●
+2、自定义方式
+1、创建数据源
+1.1 引入maven依赖
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/student
+    username: root
+    password: 1qaz2wsx
+1
+2
+3
+4
+5
+6
+YAML 复制代码
+<!-- 引入 druid 连接池 -->
+<dependency>
+  <groupId>com.alibaba</groupId>
+  <artifactId>druid</artifactId>
+  <version>1.1.21</version>
+</dependency>    
+1
+2
+3
+4
+5
+6
+XML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 3/14\n\n===== PAGE 4 =====\n\n1.2 开启 Druid数据源的监控器
+<bean id = "dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+   <property name = "url" value = "${jdbc.url}"/>
+   <property name = "username" value = "${jdbc.username}"/>
+   <property name = "password" value = "${jdbc.password}"/>
+   <property name = "maxActive" value = "20"/>
+   <property name = "initialSize" value = "1"/>
+   <property name = "maxWait" value = "60000"/>
+   <property name = "minIdle" value = "1"/>
+</bean>
+1
+2
+3
+4
+5
+6
+7
+8
+9
+原始的方式 XML 复制代码
+@Configuration
+public class MyDataSourceConfig {
+    // 默认的自动配置事判断容器中没有才会配  @ConditionalOnMissing(DataSource.clas
+    @ConfigurationProperties("spring.datasource")
+    @Bean
+    public DataSource dataSource(){
+        DruidDataSource druidDataSource = new DruidDataSource();
+        /*
+        所有数据源都需要设置这些参数
+        由于这些设置与配置文件  application.yml 的配置一摸一样，所以只需要使用  @Conf
+        druidDataSource.setUrl();
+        druidDataSource.setPassword();
+        druidDataSource.setUsername();
+        
+        */
+        // 开启监控  stat
+        //wall 开启防火墙
+        druidDataSource.setFilters("stat,wall");
+        
+        return druidDataSource;
+    }
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+SpringBoot的使用方式 Java 运行代码 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 4/14\n\n===== PAGE 5 =====\n\n1.3 配置Druid 过滤器
+public ServletRegistrationBean statViewServlet(){
+    // 配置  Stat 监控
+    StatViewServlet statViewServlet = new StatViewServlet();
+    // 配置 ServletRegistrationBean ，类型为 stat 监控类
+    // 存放路径为  "/druid/**"
+    ServletRegistrationBean<StatViewServlet> registrationBean = new 
+        ServletRegistrationBean<>(statViewServlet,"/druid/**");
+    // 设置登录  监控界面的账号与密码
+    registrationBean.addInitParameter("loginUsername","admin");
+    registrationBean.addInitParameter("loginPassword","123456");
+    return registrationBean;
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+配置监控 stat Java 运行代码 复制代码
+@ConfigurationProperties("spring.datasource")
+    @Bean
+    public DataSource dataSource() throws SQLException {
+        DruidDataSource druidDataSource = new DruidDataSource();
+        // 开启监控  stat
+        //wall 开启防火墙
+        druidDataSource.setFilters("stat,wall");
+        return druidDataSource;
+    }
+1
+2
+3
+4
+5
+6
+7
+8
+9
+开启stat监控 Java 运行代码 复制代码
+@Bean
+public FilterRegistrationBean webStatFilter(){
+    // 创建  webStatFilter 类
+    WebFilter webStatFilter = new WebFilter();
+    FilterRegistrationBean<WebStatFilter> webStatFilterFilterRegistrationBean
+                = new FilterRegistrationBean<>(webStatFilter);
+    // 过滤器拦截路径
+    webStatFilterFilterRegistrationBean.setUrlPatterns(Arrays.asList("/*"));
+    // 添加初始化参数
+    //"exclusion" 参数代表排除这些路径
+   webStatFilterFilterRegistrationBean.addInitParameter("exclusions","*.js,*.
+   return webStatFilterFilterRegistrationBean;
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+配置过滤器 Java 运行代码 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 5/14\n\n===== PAGE 6 =====\n\nhttps://github.com/alibaba/druid/tree/master/druid-spring-boot-starter 
+<https://github.com/alibaba/druid/tree/master/druid-spring-boot-starter> 
+引入依赖：
+1.4 慢SQL记录功能
+1.5开启防火墙功能
+2、配置druid启动类
+# 启动  statFilter
+spring.datasource.druid.web-stat-filter.enabled=true
+1
+2
+开启 statFilter Properties 复制代码
+spring:
+  datasource:
+    druid:
+      filter:
+        stat:
+          enabled: true  # 开启 DruidDataSource 状态监控
+          db-type: mysql # 数据库的类型
+          log-slow-sql: true # 开启慢 SQL 记录功能
+          slow-sql-millis: 2000 # 默认 3000 毫秒（ 3 秒）这里设置超过 2s ，就是慢
+1
+2
+3
+4
+5
+6
+7
+8
+9
+YAML 复制代码
+@ConfigurationProperties("spring.datasource")
+    @Bean
+    public DataSource dataSource() throws SQLException {
+        DruidDataSource druidDataSource = new DruidDataSource();
+        // 开启监控  stat
+        //wall 开启防火墙
+        druidDataSource.setFilters("stat,wall");
+        return druidDataSource;
+    }
+1
+2
+3
+4
+5
+6
+7
+8
+9
+开启防火墙功能 Java 运行代码 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 6/14\n\n===== PAGE 7 =====\n\n扩展配置项 spring.datasource.druid
+DruidSpringAopConfiguration.class,   监控SpringBean的;   配置
+项:spring.datasource.druid.aop-patterns
+DruidstatViewServletConfiguration.class,   监控页的配置:  spring.datasource.druid.stat-
+view-servlet;    默认开启  
+DruidWebstatfiterConfiguration.class, web监控配置;   spring.datasource.druid.web-
+stat-filter; 默认开启
+DruidFilterConfiguration.class})  所有Druid自己filter的配置
+1、分析自动配置
+●
+●
+●
+●
+●
+<dependency>
+  <groupId>com.alibaba</groupId>
+  <artifactId>druid-spring-boot-starter</artifactId>
+  <version>1.1.17</version>
+</dependency>
+<!-- 去除 druid 依赖
+<dependency>
+    <groupId>com.alibaba</groupId>
+    <artifactId>druid</artifactId>
+    <version>1.1.21</version>
+</dependency> 
+-->
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+引入druid启动依赖 XML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 7/14\n\n===== PAGE 8 =====\n\nhttps://github.com/mybatis <https://github.com/mybatis> 
+SpringBoot官方的Stater：Spring-boot-starter-*
+第三方的：*-spring-boot-starter
+4、整合MyBatis操作
+datasource:
+  druid:
+    username: root
+    password: 1qaz2wsx
+    stat-view-servlet: # 配置 web 监控器
+      enabled: true
+      login-username: admin
+      login-password: tiger
+      reset-enable: false
+      allow: '127.0.0.1,192.168.3.0'
+      deny: '10.201.29.3'
+    web-stat-filter: # 配置过滤器
+      enabled: true
+      url-pattern: /*
+      exclusions: '*.js,*.png,*.jpg,*.css,/druid/*'
+    filters: stat,wall  # 开启哪些功能组件
+    aop-patterns: com.hrc.*  # 用于 spring 监控所在包
+    filter: # 某个过滤器的配置信息
+      stat:
+        log-slow-sql: true # 开启慢日志记录
+        slow-sql-millis: 1000
+      wall:
+        enabled: true # 开启防火墙功能
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+Druid连接启动器的配置 YAML 复制代码
+<dependency>
+       <groupId>org.mybatis.spring.boot</groupId>
+       <artifactId>mybatis-spring-boot-starter</artifactId>
+       <version>2.1.4</version>
+</dependency>
+1
+2
+3
+4
+5
+mybatis启动类地址 XML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 8/14\n\n===== PAGE 9 =====\n\n全局配置文件
+SqlSessionFactory：自动配置好了
+SqlSession：自动配置了  SqlSessionTemplate 组合了 SqlSession
+@Import(AutoConfiguredMapperScannerRegistrar.class) ；
+Mapper：只要我们写的操作MyBatis的接口标准了 @Mapper 就会被自动扫描进来
+可以修改配置文件中  mybatis 开始的所有；
+全局配置文件内容：
+1、配置模式
+●
+●
+●
+●
+●
+@EnableConfigurationProperties(MybatisProperties.class)
+@AutoConfiqureAfter({DataSourceAutoConfiguration.class,MybatisLanquageDriverAu
+public class MybatisAutoConfiguration{}
+@ConfigurationProperties(prefix = "mybatis")
+public class MybatisProperties
+1
+2
+3
+4
+5
+6
+7
+Java 运行代码 复制代码
+mybatis:
+  type-aliases-package: com.hrc.entity  # 给类包起别名
+  mapper-locations: classpath:mapper/*.xml # sql 文件映射位置
+  #config-location: classpath:mybatis/mybatis-config.xml 全局配置文件
+1
+2
+3
+4
+YAML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 9/14\n\n===== PAGE 10 =====\n\n配置 private Configuartion；mybatis.configuration 下面的所有，就是相当于改mybatis全局配
+置文件中的值
+导入mybatis官方starter
+编写mapper接口，标准@Mapper注解
+编写sql映射文件并绑定mapper接口
+在application.yaml中指定Mapper配置文件的位置，以及指定全局配置文件的信息（建议；
+配置在mybatis.configuration）
+●
+●
+●
+●
+2、注解模式
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <properties>
+        <!-- 开启二级缓存 -->
+        <property name="cacheEnabled" value="true"/>
+        <!-- 日志配置 -->
+        <property name="logImpl" value="STDOUT_LOGGING"/>
+    </properties>
+<!--    开启驼峰命名 -->
+    <settings>
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+    </settings>
+    <!-- 别名包配置 -->
+    <typeAliases>
+        <package name="com.hrc.ssm.entity"/>
+    </typeAliases>
+</configuration>
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+XML 复制代码
+mybatis:
+  type-aliases-package: com.hrc.entity  # 给类包起别名
+  mapper-locations: classpath:mapper/*.xml # sql 文件映射位置
+  #config-location: classpath:mybatis/mybatis-config.xml 全局配置文件
+  configuration:
+    map-underscore-to-camel-case: true
+可以不写全局；配置文件，所有全局配置文件的配置都放在 configuration 配置项中即可     
+1
+2
+3
+4
+5
+6
+7
+8
+YAML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 10/14\n\n===== PAGE 11 =====\n\n最佳实战：
+引入mybatis-starter
+配置application.yaml中，指定mapper-location位置即可
+编写Mapper接口并标注@Mapper 注解
+简单方法直接注解方式
+复杂方法编写mapper.xml进行绑定映射
+3、混合模式
+○
+○
+○
+○
+○
+@Mapper
+public interface CityDao {
+    @Select("select * from city where id = #{id}")
+    City getById(Long id);
+    @Insert("insert into city(id,name,state,country) values(#{id},#{name},#{s
+   //insert 的功能选项
+    @Options(useGeneratedKeys = true,keyProperty = "id")
+    void insertCity(City city);
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+Java 运行代码 复制代码
+@Mapper
+public interface CityDao {
+    @Select("select * from city where id = #{id}")
+    City getById(Long id);
+    void insertCity(City city);
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+注解部分 Java 运行代码 复制代码
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.o
+<mapper namespace="com.hrc.dao.CityDao">
+  <insert id="insertCity" useGeneratedKeys="true" keyProperty="id">
+    insert into city(id,name,state,country) values(#{id},#{name},#{state},#{co
+  </insert>
+</mapper>
+1
+2
+3
+4
+5
+6
+7
+8
+配置部分 XML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 11/14\n\n===== PAGE 12 =====\n\n@MapperScan("com.hrc.dao")简化，其他接口就可以不用标注@Mapper注解
+Redis是一个开源（BSD许可），内存存储的数据结构服务器，可用作数据库，高速缓存和消
+息队列代理。它支持字符串 <https://www.redis.net.cn/tutorial/3508.html> 、哈希表 
+<https://www.redis.net.cn/tutorial/3509.html> 、列表 
+<https://www.redis.net.cn/tutorial/3510.html> 、集合 
+<https://www.redis.net.cn/tutorial/3511.html> 、有序集合 
+<https://www.redis.net.cn/tutorial/3512.html> ，位图 
+<https://www.redis.net.cn/tutorial/3508.html> ，hyperloglogs 
+<https://www.redis.net.cn/tutorial/3513.html> 等数据类型。内置复制、Lua脚本 
+<https://www.redis.net.cn/tutorial/3516.html> 、LRU收回、事务 
+<https://www.redis.net.cn/tutorial/3515.html> 以及不同级别磁盘持久化功能，同时通过Redis 
+Sentinel提供高可用，通过Redis Cluster提供自动分区 
+<https://www.redis.net.cn/tutorial/3524.html> 。
+○
+5、NoSQL
+1、Redis自动配置
+ <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+1
+2
+3
+4
+redis依赖 XML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 12/14\n\n===== PAGE 13 =====\n\n自动配置：
+RedisAutoConfiguration 自动配置类。RedisProperties 属性类   ---> spring.redis.xxx是
+对redis的配置
+连接工厂是准备好的。LettuceConnectionConfiguration、JedisConnectionConfiguration
+自动注入了RedisTemplate<Object,Object>：xxxTemplate；StringRedisTemplate
+●
+●
+●
+●
+2、RedisTemplate 和 Lettuce
+2.1、切换至 Jedis客户端
+    @Test
+    public void testRedisOne(){
+        ValueOperations operations = redisTemplate.opsForValue();
+        operations.set("Hello","world");
+        Object hello = operations.get("Hello");
+        System.out.println("hello = " + hello);
+    }
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+使用RedisTemplate Java 运行代码 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 13/14\n\n===== PAGE 14 =====\n\n问题：
+Filter 和 Interceptor 几乎拥有相同的功能，它两区别？
+FIlter 是 Servlet 定义的原生组件，好处，脱离Spring应用也能使用
+Interceptor 是Spring 定义的接口。可以使用 Spring 的自动装配等功能
+1.
+2.
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+<dependency>
+  <groupId>redis.clients</groupId>
+  <artifactId>jedis</artifactId>
+</dependency>    
+1
+2
+3
+4
+5
+6
+7
+8
+导入jedis的依赖 XML 复制代码
+spring:
+  redis:
+    host: 192.168.153.51
+    port: 6379
+    client-type: jedis
+1
+2
+3
+4
+5
+客户端类型 YAML 复制代码
+2026/11/7 20:50 数据访问
+https://www.yuque.com/hehua-rv8qn/phdb0p/puz535b2ae8n19wa 14/14

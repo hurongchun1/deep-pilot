@@ -36,7 +36,8 @@ def workspace(tmp_path, monkeypatch):
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text((root / relative).read_text(encoding="utf-8"), encoding="utf-8")
-    shutil.copytree(root / "sources", tmp_path / "sources")
+    if (root / "sources").is_dir():
+        shutil.copytree(root / "sources", tmp_path / "sources")
     shutil.copytree(root / "skills", tmp_path / "skills")
     monkeypatch.setattr(tools, "PROJECT_ROOT", tmp_path)
     return tmp_path
@@ -75,6 +76,7 @@ def test_planning_across_new_sessions_without_sources(workspace, scenario):
 
 
 def test_optional_source_discovery_and_reading(workspace):
+    (workspace / "sources").mkdir(exist_ok=True)
     (workspace / "sources/new-task.md").write_text("本周只有 3 小时。", encoding="utf-8")
     model = ScriptedModel(replies=[
         call("list_sources", {}, "list"),
@@ -103,8 +105,8 @@ def test_checker_accepts_body_under_subheadings(workspace):
     assert json.loads(tools.check_plan.invoke({"slug": "nested"}))["ok"] is True
 
 
-@pytest.mark.parametrize("complete", [True, False])
-def test_live_entry_with_scripted_model_preserves_evidence(workspace, monkeypatch, complete):
+@pytest.mark.parametrize("outcome", ["complete", "no_plan", "unfinished_todo"])
+def test_live_entry_with_scripted_model_preserves_evidence(workspace, monkeypatch, outcome):
     # 验证真实模型入口的编排和失败取证，不发送网络请求。
     class LiveScriptedModel(ScriptedModel):
         model_name: str = "scripted-entry-test"
@@ -113,7 +115,12 @@ def test_live_entry_with_scripted_model_preserves_evidence(workspace, monkeypatc
         call("save_preference", {"key": "format", "value": "中文分节 Markdown"}, "remember"),
         AIMessage(content="已保存偏好。"),
     ]
-    replies += planning_model("event").replies if complete else [AIMessage(content="未生成计划。")]
+    if outcome == "complete":
+        replies += planning_model("event").replies
+    elif outcome == "unfinished_todo":
+        replies += planning_model("event").replies[:-2] + [AIMessage(content="计划已保存。")]
+    else:
+        replies += [AIMessage(content="未生成计划。")]
     model = LiveScriptedModel(replies=replies)
     original_build = agent.build_graph
     monkeypatch.setattr(agent, "PROJECT_ROOT", workspace)
@@ -121,18 +128,21 @@ def test_live_entry_with_scripted_model_preserves_evidence(workspace, monkeypatc
     monkeypatch.setattr(agent, "build_graph", lambda model, **kwargs: original_build(model, root=workspace, **kwargs))
     monkeypatch.setattr(sys, "argv", ["live_demo.py", "--task", SCENARIOS["event"]["request"], "--slug", "event"])
     main = runpy.run_path(str(Path(__file__).parents[1] / "experiments/live_demo.py"))["main"]
-    if complete:
+    if outcome == "complete":
         main()
     else:
-        with pytest.raises(RuntimeError, match="未覆盖全部必需步骤"):
+        reason = "规划待办尚未全部标记 completed" if outcome == "unfinished_todo" else "未创建规划待办"
+        with pytest.raises(RuntimeError, match=reason):
             main()
     paths = list((workspace / "evidence").glob("planner-live-*.json"))
     assert len(paths) == 1
     evidence = json.loads(paths[0].read_text(encoding="utf-8"))
     assert evidence["request"] == SCENARIOS["event"]["request"]
     assert evidence["memory_visible_in_new_thread"] is True
-    assert bool(evidence["error"]) is not complete
-    assert bool(evidence["artifact_sha256"]) is complete
+    assert bool(evidence["error"]) is (outcome != "complete")
+    assert bool(evidence["artifact_sha256"]) is (outcome != "no_plan")
+    if outcome == "unfinished_todo":
+        assert evidence["unmet_checks"] == ["规划待办尚未全部标记 completed"]
 
 
 def test_invalid_preference_does_not_write(workspace):
@@ -174,6 +184,24 @@ def test_concurrent_preferences_preserve_all_keys(workspace, monkeypatch):
         for (key, value), result in zip(preferences.items(), results):
             assert f"{key}: {value}\n" in saved
             assert f"{key}: {value}\n" in result
+
+
+def test_build_model_uses_deepseek_key_when_openai_key_is_absent(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_BASE", "https://api.siliconflow.cn/v1")
+    monkeypatch.delenv("DEEPSEEK_API_BASE", raising=False)
+    monkeypatch.delenv("AGENTSEEK_MODEL", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only-key")
+    model = agent.build_model()
+    assert model.model_name == "deepseek-flash"
+    assert str(model.openai_api_base).rstrip("/") == "https://api.deepseek.com/v1"
+
+
+def test_build_model_requires_a_key(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="OPENAI_API_KEY 或 DEEPSEEK_API_KEY"):
+        agent.build_model()
 
 
 @pytest.mark.parametrize("slug", ["../escape", "/tmp/escape", "a/b", ""])

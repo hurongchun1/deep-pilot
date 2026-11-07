@@ -152,4 +152,21 @@
 - 复用：create_deep_agent、TodoListMiddleware、MemoryMiddleware、FilesystemBackend、文件工具、预设模型及运行证据模式。未增加依赖。
 - 修改：agent.py 和 AGENTS.md 改为通用规划规则；tools.py 新增资料发现、取消固定资料白名单并替换结构规则；task-planning Skill 替换 release-plan；sample_plan.py 提供三个预设案例；运行脚本支持场景和自定义目标；README 更新使用方式和历史证据边界。
 - 验证：`uv sync --frozen` 成功；`uv run --frozen pytest tests -q` 为 17 passed；离线脚本三个案例全部 PASS，生成对应计划和证据；真实模型脚本 --help 正常。测试覆盖真实入口的编排成功及失败取证，但使用预设模型，没有外部模型请求。
-- 边界：尚未运行通用版的真实模型验证。结构检查仅检查必要章节与非空正文，不证明事实准确或排期可行。旧版青柠清单产物、资料及证据保留作历史对照，旧 Skill 路径不再存在；旧证据不用于证明新版能力。
+- 边界：当时尚未运行通用版的真实模型验证。结构检查仅检查必要章节与非空正文，不证明事实准确或排期可行。
+
+## 2026-11-02：接入现有 DeepSeek 密钥并完成真实模型实验
+
+- 类型：真实模型接入与验证。
+- 目标：让 Task8 复用项目已有的 `DEEPSEEK_API_KEY`，保存一次通用规划版的真实模型产物与工具轨迹。
+- 验收：无 `OPENAI_API_KEY` 时选择 `deepseek-flash` 与 DeepSeek 官方接口；学习场景真实运行完成 Skill 读取、待办管理、计划保存、读回及结构检查。
+- 修改：`agent.py` 增加 DeepSeek 密钥回退；测试覆盖配置选择与缺失密钥；README、打卡笔记及证据说明记录运行方法和边界。
+- 验证：`uv run --frozen pytest tests -q` 为 19 passed；`experiments/live_demo.py --scenario learning --slug learning-plan-live` 成功，生成 `artifacts/learning-plan-live.md` 与 `evidence/planner-live-4aad1ec7cc74.json`，`check_plan` 返回 `ok=true`。
+- 边界：只运行一个学习场景；模型曾先用无效的 `plan_format` 偏好键，随后自行改正。结构通过不证明计划可行；其他目标仍需单独验证。
+
+## 2026-11-02：清理旧示例
+
+- 类型：项目清理。
+- 目标：保留通用规划助手及其离线、真实运行证据，移除旧版产品上线示例。
+- 修改：删除旧版青柠清单产物、证据及资料；离线脚本和测试适配不存在 `sources/` 的情况；同步 README 与打卡笔记。
+- 验证：19 项测试及三个离线案例全部通过。
+- 未完成：自动审批策略拒绝删除 `.venv`、`.pytest_cache` 等本地缓存；这些目录已被 Git 忽略，不进入提交。

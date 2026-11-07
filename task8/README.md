@@ -2,6 +2,8 @@
 
 把用户的目标、时间和约束拆成可执行的行动计划，适用于学习、开发、活动等任务。不需要修改代码或准备固定的两份资料。它生成计划、保存文件并做结构检查，不实际替用户执行任务。
 
+课程学习、实验结果及引用来源汇总见 [Task08 打卡笔记](CHECKIN.md)。
+
 ## 从哪里开始看
 
 1. 先看下面的三个输入示例，理解助手的用途。
@@ -34,7 +36,7 @@
 | `task-planning` Skill | 按需加载通用规划方法和章节提纲 |
 | `FilesystemBackend(virtual_mode=True)` | 映射 Skill、记忆和计划的虚拟路径到 task8 目录 |
 
-用户消息是主要输入。有补充资料时，把 Markdown 文件放入 `sources/`，在任务中指明即可；助手可以通过 `list_sources` 发现文件、用 `read_source` 读取。新增文件无需修改工具白名单。不会强制读取其他任务的资料。
+用户消息是主要输入。有补充资料时，可创建 `sources/` 并放入 Markdown 文件，在任务中指明即可；助手可以通过 `list_sources` 发现文件、用 `read_source` 读取。新增文件无需修改工具白名单。
 
 仅当用户明确说“请记住以后用某种格式”时才保存偏好。目标、预算和期限属于当前任务，不自动保存为长期记忆。新会话会从 `memory/preferences.md` 加载保存的偏好。
 
@@ -64,7 +66,7 @@ uv run --frozen python -X utf8 experiments/offline_demo.py --scenario developmen
 
 ## 真实模型：输入自己的目标
 
-复制 `.env.example` 为 `.env`，配置 `OPENAI_API_KEY`、`AGENTSEEK_MODEL` 和 `OPENAI_API_BASE` 后运行（可能产生模型服务费用）：
+真实模型可使用 `OPENAI_API_KEY` 配合 `AGENTSEEK_MODEL`、`OPENAI_API_BASE`；也可直接使用环境变量 `DEEPSEEK_API_KEY`，此时默认模型为 `deepseek-flash`，默认地址为 DeepSeek 官方接口（可用 `DEEPSEEK_API_BASE` 覆盖）。如果复制 `.env.example` 并改用 DeepSeek 密钥，需同时把其中的 `AGENTSEEK_MODEL` 改为 `deepseek-flash`。运行会产生模型服务费用：
 
 ```powershell
 uv run --frozen python -X utf8 experiments/live_demo.py --scenario learning
@@ -72,6 +74,8 @@ uv run --frozen python -X utf8 experiments/live_demo.py --task "未来四周整�
 ```
 
 `--task` 覆盖预设案例；`--slug` 指定文件名（不含 `.md`），默认 `task-plan`。重复使用相同名称会覆盖对应计划。脚本先演示明确保存格式偏好，再在新会话规划。成功后生成 `artifacts/<slug>.md` 和 `evidence/planner-live-<run-id>.json`，进入运行后失败也会保留已观察到的精简证据。配置或参数校验失败发生在运行前，不生成证据。完整模型请求和响应可通过可选的 LangSmith 追踪查看。
+
+若从项目根目录启动，先执行 `cd task8`；虚拟环境已激活时也可运行 `python -m experiments.live_demo --scenario learning`。出现“真实运行未覆盖全部必需步骤”时，报错末尾和当次 `evidence/planner-live-<run-id>.json` 的 `unmet_checks` 会列出缺少的步骤。模型可能已生成并通过结构检查，但最后没有调用 `write_todos` 把规划待办标记为 `completed`；这属于流程未完成，计划文件仍可在 `artifacts/` 查看。再次运行可使用新 `--slug`，避免覆盖上次计划。
 
 启动 AgentSeek API：
 
@@ -81,8 +85,8 @@ uv run --frozen agentseek-api dev --port 2025
 
 图入口为 `./agent.py:graph`，图名称为 `task_planner`。本目录只提供后端，API 文档地址为 <http://127.0.0.1:2025/docs>。
 
-## 验证边界与旧示例
+## 验证边界
 
 `check_plan` 仅检查七个必要章节及非空正文，不检查日期合理性、事实准确性、排期可行性或来源是否支持结论。工具返回 `ok=true` 只能说明结构通过。真实模型是否按要求规划，需查看当次工具记录并人工审阅计划。
 
-通用任务规划版已提供离线验证；旧版“青柠清单上线计划”产物和证据作为历史对照保留：`artifacts/qingning-release-plan*.md`、`evidence/offline-release-plan.json`、`evidence/live-0bbfc76a4460.json` 及对应的两份 sources 资料。旧证据只适用于旧版产品示例，不能作为当前通用规划版的真实模型验证。旧版 release-plan Skill 已由 task-planning 替换，旧产物引用路径属于历史记录。
+通用任务规划版已提供离线验证及一次 `deepseek-flash` 真实模型学习场景运行，产物见 `artifacts/learning-plan-live.md`，证据见 `evidence/planner-live-4aad1ec7cc74.json`。

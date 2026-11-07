@@ -67,6 +67,7 @@ def main():
     request = args.task or SCENARIOS[args.scenario]["request"]
     remember, snapshots = None, []
     error = None
+    unmet_checks = []
     evidence_dir = PROJECT_ROOT / "evidence"
     evidence_dir.mkdir(exist_ok=True)
     evidence_path = evidence_dir / f"planner-live-{run_id}.json"
@@ -84,7 +85,8 @@ def main():
             message.pretty_print()
         task = (request + "\n请使用 task-planning Skill 及参考提纲、write_todos。"
                 "按用户给出的目标规划，本地资料仅在相关时读取。"
-                f"使用 save_plan 将计划保存为 {args.slug}，再 read_plan、check_plan，等待各工具结果后回答。")
+                f"使用 save_plan 将计划保存为 {args.slug}，再 read_plan、check_plan。"
+                "确认检查通过后，再用 write_todos 将所有规划待办标记为 completed，等待工具结果后回答。")
         for snapshot in graph.stream(
             {"messages": [{"role": "user", "content": task}]},
             {"configurable": {"thread_id": f"{run_id}-plan"},
@@ -114,13 +116,27 @@ def main():
                  and item["id"] in results and results[item["id"]].status != "error"]
         ordered = any(order[index:index + 3] == ["save_plan", "read_plan", "check_plan"]
                       for index in range(len(order) - 2))
-        if not (saved and recorder.has_saved_preference and recorder.has_saved_preference[0]
-                and required <= successful and ordered
-                and {"/skills/task-planning/SKILL.md", "/skills/task-planning/references/plan-outline.md"} <= read_paths
-                and checker.get("ok") and file_check.get("ok")
-                and snapshots[-1].get("todos")
-                and all(todo["status"] == "completed" for todo in snapshots[-1]["todos"])):
-            raise RuntimeError("真实运行未覆盖全部必需步骤；详见精简证据")
+        if not saved:
+            unmet_checks.append("格式偏好未成功保存")
+        if not recorder.has_saved_preference or not recorder.has_saved_preference[0]:
+            unmet_checks.append("新会话未读取格式偏好")
+        for name in sorted(required - successful):
+            unmet_checks.append(f"工具未成功调用：{name}")
+        if not ordered:
+            unmet_checks.append("未按 save_plan → read_plan → check_plan 顺序操作目标文件")
+        for path in sorted({"/skills/task-planning/SKILL.md", "/skills/task-planning/references/plan-outline.md"} - read_paths):
+            unmet_checks.append(f"未成功读取：{path}")
+        if not checker.get("ok"):
+            unmet_checks.append("check_plan 未通过")
+        if not file_check.get("ok"):
+            unmet_checks.append("产物文件结构检查未通过")
+        todos = snapshots[-1].get("todos") or []
+        if not todos:
+            unmet_checks.append("未创建规划待办")
+        elif any(todo["status"] != "completed" for todo in todos):
+            unmet_checks.append("规划待办尚未全部标记 completed")
+        if unmet_checks:
+            raise RuntimeError("真实运行未覆盖全部必需步骤：" + "；".join(unmet_checks) + "；详见精简证据")
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
         raise
@@ -131,6 +147,7 @@ def main():
             "mode": "live", "model": model.model_name, "run_id": run_id,
             "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
             "request": request, "error": error,
+            "unmet_checks": unmet_checks,
             "memory_tool_calls": tool_calls(remember["messages"]) if remember else [],
             "memory_visible_in_new_thread": bool(recorder.has_saved_preference and recorder.has_saved_preference[0]),
             "tool_calls": calls,

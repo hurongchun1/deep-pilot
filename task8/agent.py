@@ -20,15 +20,21 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 def build_model() -> ChatOpenAI:
     key = os.getenv("OPENAI_API_KEY", "").strip()
+    using_deepseek = not key
+    if using_deepseek:
+        key = os.getenv("DEEPSEEK_API_KEY", "").strip()
     if not key:
-        raise ValueError("启动真实模型前，请在 .env 中设置 OPENAI_API_KEY")
+        raise ValueError("启动真实模型前，请设置 OPENAI_API_KEY 或 DEEPSEEK_API_KEY")
     parallel = os.getenv("AGENTSEEK_PARALLEL_TOOL_CALLS", "false").lower()
     if parallel not in {"true", "false"}:
         raise ValueError("AGENTSEEK_PARALLEL_TOOL_CALLS 只能设为 true 或 false")
-    kwargs = {"model": os.getenv("AGENTSEEK_MODEL", "deepseek-ai/DeepSeek-V3.2"),
+    default_model = "deepseek-flash" if using_deepseek else "deepseek-ai/DeepSeek-V3.2"
+    kwargs = {"model": os.getenv("AGENTSEEK_MODEL", "").strip() or default_model,
               "api_key": key,
               "model_kwargs": {"parallel_tool_calls": parallel == "true"}}
-    if base := os.getenv("OPENAI_API_BASE", "").strip():
+    base = (os.getenv("DEEPSEEK_API_BASE", "").strip() or "https://api.deepseek.com/v1"
+            if using_deepseek else os.getenv("OPENAI_API_BASE", "").strip())
+    if base:
         kwargs["base_url"] = base
     return ChatOpenAI(**kwargs)
 
